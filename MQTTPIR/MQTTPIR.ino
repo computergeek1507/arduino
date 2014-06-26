@@ -55,7 +55,7 @@ void setup()
     client.publish("arduino2/hello","hello world");
     //client.subscribe("/arduino/garagepushbutton");
     client.publish(willtopic, ipstr);
-    //digitalWrite(StatLED, HIGH);
+    digitalWrite(StatLED, HIGH);
   }
 }
 
@@ -73,7 +73,7 @@ void loop()
     client.publish("arduino2/hello","hello world");
     //client.subscribe("/arduino/garagepushbutton");
     client.publish(willtopic, ipstr);
-    //digitalWrite(StatLED, HIGH);
+    digitalWrite(StatLED, HIGH);
   }
   
   }
@@ -104,11 +104,11 @@ void SendMotionReading()
     if(!client.publish("/arduino/pirmotion", tempChar)) 
     {
       Serial.print(F("Fail "));
-      //digitalWrite(StatLED, LOW);
+      digitalWrite(StatLED, LOW);
     }
     else{
       Serial.print(F("Pass "));
-      //digitalWrite(StatLED, HIGH);
+      digitalWrite(StatLED, HIGH);
     }
 }
 
