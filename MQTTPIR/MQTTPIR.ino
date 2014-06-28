@@ -95,8 +95,8 @@ void loop()
 }
 void SendMotionReading() 
 {
- char buffer[5];
-    String value = dtostrf(prevMotionValue, 4, 1, buffer);    
+
+    String value = BoolToOpenHAB(prevMotionValue);    
     char tempChar[value.length()+1]; 
     value.toCharArray(tempChar, value.length()+1);
     
@@ -140,4 +140,12 @@ void callback(char* topic, byte* payload, unsigned int length) {
  */
 	client.publish("arduino/hello2", "hello");
 }
+
+String BoolToOpenHAB(int stat){
+  //inverse logic because of PULLUPS are Default
+  if(stat == 1){
+    return "ON";
+  }
+   return "OFF";
+ }
 
