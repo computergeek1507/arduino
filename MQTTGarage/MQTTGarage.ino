@@ -28,15 +28,15 @@ unsigned long lastMillis = 0;
 // the value of the 'other' resistor
 #define SERIESRESISTOR 10000  
 
-const int openPin = 2;
-const int closedPin = 4;
+const int openPin = A0;
+const int closedPin = A1;
 const int relayPin = 6;
 const int photoPin = A5;
 const int StatLED = 5;
 const int stdDoorPin = 7;
 
-int prevOpenValue = LOW;    // open sensor Prev value
-int prevClosedValue = LOW;   // close sensor Prev value
+int prevOpenValue = 0;    // open sensor Prev value
+int prevClosedValue = 0;   // close sensor Prev value
 int prevDoorValue = LOW;   /// standard door sensor Prev value
 
 //int samples[NUMSAMPLES];
@@ -50,8 +50,8 @@ PubSubClient client(server, 1883, callback, ethClient);
 
 void setup()
 {
-      pinMode(openPin, INPUT);   // Open Sensor
-  pinMode(closedPin, INPUT);   // Closed Senser
+     // pinMode(openPin, INPUT);   // Open Sensor
+  //pinMode(closedPin, INPUT);   // Closed Senser
   pinMode(relayPin, OUTPUT);  // Switch Relay 
  pinMode(StatLED, OUTPUT);  // LED 
  pinMode(stdDoorPin, INPUT);   // Stand Door Senser
@@ -106,30 +106,30 @@ void loop()
     //totalCount++;
     //Serial.println(totalCount,DEC);
   }  
-
-int newOpenValue = digitalRead(openPin); 
-  int newClosedValue = digitalRead(closedPin);
-  int newDoorValue = digitalRead(stdDoorPin);
   
-  if(newOpenValue!=prevOpenValue)
-{
-  prevOpenValue=newOpenValue;
-  SendOpenDoorReading();
-}
-
-  if(newClosedValue!=prevClosedValue)
-{
-  prevClosedValue=newClosedValue;
-  SendClosedDoorReading();
-}
-
-  if(newDoorValue!=prevDoorValue)
+    int newDoorValue = digitalRead(stdDoorPin);
+    
+      if(newDoorValue!=prevDoorValue)
 {
   prevDoorValue=newDoorValue;
   SendStandardDoorReading();
 }
 
-int newPhotoValue = ReadPhotoValue();
+int newOpenValue = ReadAnalogValue(openPin); 
+  int newClosedValue = ReadAnalogValue(closedPin);
+
+    if(abs(prevOpenValue-newOpenValue)>10 )
+{
+  prevOpenValue=newOpenValue;
+  SendOpenDoorReading();
+}
+ if(abs(prevClosedValue-newClosedValue)>10 )
+{
+  prevClosedValue=newClosedValue;
+  SendClosedDoorReading();
+}
+
+int newPhotoValue = ReadAnalogValue(photoPin);
   
   if(abs(prevPhotoValue-newPhotoValue)>5 )
 {
@@ -291,16 +291,17 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	client.publish("arduino/hello", "hello");
 }
 
-int ReadPhotoValue()
+int ReadAnalogValue(int pinNumber)
 {
   int loopValue = 0;
   
-  //average 5 readings for kicks
+  //average 10 readings for kicks
   int i = 0;
   for (i = 0; i < 10; i++)  
   {
-     int readValue = analogRead(photoPin); 
-     loopValue = loopValue + readValue;          
+     int readValue = analogRead(pinNumber); 
+     loopValue = loopValue + readValue; 
+       delay(2);  
   }
   
   return ( loopValue/i);
