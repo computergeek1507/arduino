@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <PubSubClient.h>
+#include <Wire.h>
 
 #define MQTT_CLIENTID "pirArduino"
 //#define MQTT_SERVER "192.168.5.148"
@@ -24,6 +25,8 @@ byte ip[] = { 192, 168, 5, 118 };
 unsigned long thisMillis = 0;
 unsigned long lastMillis = 0;
 
+int tmp102Address = 0x48;
+float oldfahrenheit = 0;
 
 const int motionPin = 7;
 const int StatLED = 13;
@@ -78,7 +81,13 @@ void loop()
   
   }
   //client.subscribe("/arduino/garagepushbutton");
-  //thisMillis = millis();
+  thisMillis = millis();
+  
+    if(thisMillis - lastMillis > delayMillis)
+  {
+    lastMillis = thisMillis;
+    SendTempReading();
+  } 
 
 
   int newMotionValue = digitalRead(motionPin); 
@@ -88,7 +97,35 @@ void loop()
 {
   prevMotionValue=newMotionValue;
   SendMotionReading();
-   delay(100);
+   //delay(100);
+}
+
+  //float celsius = getTemperature();
+  //Serial.print("Celsius: ");
+  //Serial.println(celsius);
+  
+  
+    int loopValue = 0;
+  
+  //average 10 readings for kicks
+  int i = 0;
+  for (i = 0; i < 5; i++)  
+  {
+     int readValue =getTemperature();      
+     loopValue = loopValue + readValue;        
+  }
+  
+  float celsius = loopValue/i;
+
+
+  float fahrenheit = (1.8 * celsius) + 32; 
+  
+   if(abs(oldfahrenheit-fahrenheit)>.05)
+  {
+    oldfahrenheit=fahrenheit;
+    //SendTempReading();
+    //Serial.print("Fahrenheit: ");
+ // Serial.println(fahrenheit);
 }
 
   client.loop();
@@ -102,6 +139,25 @@ void SendMotionReading()
     
    
     if(!client.publish("/arduino/pirmotion", tempChar)) 
+    {
+      Serial.print(F("Fail "));
+      digitalWrite(StatLED, LOW);
+    }
+    else{
+      Serial.print(F("Pass "));
+      digitalWrite(StatLED, HIGH);
+    }
+}
+
+void SendTempReading() 
+{
+ char buffer[5];
+    String value = dtostrf(oldfahrenheit, 4, 1, buffer);
+    char tempChar[value.length()+1]; 
+    value.toCharArray(tempChar, value.length()+1);
+    
+   
+    if(!client.publish("/arduino/indoortemp", tempChar)) 
     {
       Serial.print(F("Fail "));
       digitalWrite(StatLED, LOW);
@@ -149,3 +205,15 @@ String BoolToOpenHAB(int stat){
    return "OFF";
  }
 
+float getTemperature(){
+  Wire.requestFrom(tmp102Address,2); 
+
+  byte MSB = Wire.read();
+  byte LSB = Wire.read();
+
+  //it's a 12bit int, using two's compliment for negative
+  int TemperatureSum = ((MSB << 8) | LSB) >> 4; 
+
+  float celsius = TemperatureSum*0.0625;
+  return celsius;
+}
