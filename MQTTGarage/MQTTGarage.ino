@@ -35,8 +35,8 @@ const int photoPin = A5;
 const int StatLED = 5;
 const int stdDoorPin = 7;
 
-int prevOpenValue = 0;    // open sensor Prev value
-int prevClosedValue = 0;   // close sensor Prev value
+int prevOpenValue = 2;    // open sensor Prev value
+int prevClosedValue = 2;   // close sensor Prev value
 int prevDoorValue = LOW;   /// standard door sensor Prev value
 
 //int samples[NUMSAMPLES];
@@ -115,15 +115,15 @@ void loop()
   SendStandardDoorReading();
 }
 
-int newOpenValue = ReadAnalogValue(openPin); 
-  int newClosedValue = ReadAnalogValue(closedPin);
+int newOpenValue = Evaluate(ReadAnalogValue(openPin)); 
+int newClosedValue = Evaluate(ReadAnalogValue(closedPin));
 
-    if(abs(prevOpenValue-newOpenValue)>10 )
+    if(prevOpenValue != newOpenValue)
 {
   prevOpenValue=newOpenValue;
   SendOpenDoorReading();
 }
- if(abs(prevClosedValue-newClosedValue)>10 )
+ if(prevClosedValue!=newClosedValue)
 {
   prevClosedValue=newClosedValue;
   SendClosedDoorReading();
@@ -153,7 +153,7 @@ int newPhotoValue = ReadAnalogValue(photoPin);
 
 void SendOpenDoorReading() 
 {
-      String openValue = String(prevOpenValue);
+      String openValue = BoolToOpenHAB(prevOpenValue);
       char openChar[openValue.length()+1]; 
     openValue.toCharArray(openChar, openValue.length()+1);
 
@@ -174,7 +174,7 @@ void SendOpenDoorReading()
 
 void SendClosedDoorReading() 
 {
-  String closedValue = String(prevClosedValue);
+  String closedValue = BoolToOpenHAB(prevClosedValue);
      char closedChar[closedValue.length()+1]; 
     closedValue.toCharArray(closedChar, closedValue.length()+1);
   if(!client.publish("/arduino/garageclose", closedChar) )
@@ -404,3 +404,19 @@ float ReadTemperature(){
 //return 1;
   //return steinhart;
 }
+
+int Evaluate(int reading)
+{
+  if(reading < 800){
+    return 1;
+  }
+   return 0;
+ }
+
+String BoolToOpenHAB(int stat)
+{
+  if(stat == 1){
+    return "ON";
+  }
+   return "OFF";
+ }
