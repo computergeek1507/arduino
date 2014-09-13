@@ -105,28 +105,27 @@ void loop()
   //Serial.println(celsius);
   
   
-    int loopValue = 0;
+    float loopValue = 0;
   
   //average 10 readings for kicks
   int i = 0;
   for (i = 0; i < 5; i++)  
   {
-     int readValue =getTemperature();      
+     float readValue = getTemperature();      
      loopValue = loopValue + readValue;        
   }
   
-  float celsius = loopValue/i;
+  float celsius = loopValue/((float)i);
 
-
-  float fahrenheit = (1.8 * celsius) + 32; 
+  float fahrenheit = (1.8 * celsius) + 32.0; 
   
-   if(abs(oldfahrenheit-fahrenheit)>.05)
-  {
+  // if(abs(oldfahrenheit-fahrenheit)>.05)
+  //{
     oldfahrenheit=fahrenheit;
     //SendTempReading();
     //Serial.print("Fahrenheit: ");
  // Serial.println(fahrenheit);
-}
+//}
 
   client.loop();
 }
