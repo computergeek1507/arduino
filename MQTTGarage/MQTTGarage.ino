@@ -67,7 +67,7 @@ void setup()
   
   if (client.connect(MQTT_CLIENTID, MQTT_USER, MQTT_PASS, willtopic, MQTTQOS2, 1, MQTT_WILLMESSAGE)) {
    client.publish(willtopic, NULL, 0, TRUE);
-    client.publish("arduino/hello","hello world");
+    //client.publish("arduino/hello","hello world");
     client.subscribe("/arduino/garagepushbutton");
     client.publish(willtopic, ipstr);
     digitalWrite(StatLED, HIGH);
@@ -85,14 +85,14 @@ void loop()
     
       if (client.connect(MQTT_CLIENTID, MQTT_USER, MQTT_PASS, willtopic, MQTTQOS2, 1, MQTT_WILLMESSAGE)) {
    client.publish(willtopic, NULL, 0, TRUE);
-    client.publish("arduino/hello","hello world");
+    //client.publish("arduino/hello","hello world");
     client.subscribe("/arduino/garagepushbutton");
     client.publish(willtopic, ipstr);
     digitalWrite(StatLED, HIGH);
   }
   
   }
-  client.subscribe("/arduino/garagepushbutton");
+  
   thisMillis = millis();
 
   if(thisMillis - lastMillis > delayMillis)
@@ -288,7 +288,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 		} 
 	}
 
-	client.publish("arduino/hello", "hello");
+	//client.publish("arduino/hello", "hello");
 }
 
 int ReadAnalogValue(int pinNumber)
