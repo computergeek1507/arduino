@@ -96,39 +96,15 @@ void callback(char* topic, byte* payload, unsigned int length)
 
 	Serial.println(buff);
 
-	/*
-	 * Echo
-	 */
-	//client.publish("/arduino/echo", buff);
-
 	  if (!strcmp(topic, "/arduino/lightControl")) 
     {
       if(length==5||length==6)
       {
         //int number = atoi( buff[1] );
         int number = buff[1] - '0';
-        int channel = 0;
-        //Serial.println(number);
-        //char channelChar;
-        if(buff[0] == 'A')
-        {
-          channel = 1;
-        }
-        else if(buff[0] == 'B')
-        {
-          channel = 2;
-        }
-        else if(buff[0] == 'C')
-        {
-          channel = 3;
-        }
-        else if(buff[0] == 'D')
-        {
-          channel = 4;
-          //Serial.println( "Channel: D");
-        }
+        int channel = buff[0] - '@';
+        //Serial.println(number);       
         //Serial.println(channel);
-        //char operation[4]  = buff.substring(3);
 
         char feedback[length];  
         char feedbackTopic[256];  
@@ -139,7 +115,7 @@ void callback(char* topic, byte* payload, unsigned int length)
            mySwitch.switchOn(channel, number);
            delay(250);
            mySwitch.switchOn(channel, number);
-           sprintf(feedback, "%c%i_ON",buff[0], number);
+           sprintf(feedback, "%c%i_ON",(channel + '@'), number);
            client.publish(feedbackTopic, "ON");
         }
         else
@@ -147,12 +123,10 @@ void callback(char* topic, byte* payload, unsigned int length)
           mySwitch.switchOff(channel, number);
            delay(250);
            mySwitch.switchOff(channel, number);
-           sprintf(feedback, "%c%i_OFF",buff[0], number);
+           sprintf(feedback, "%c%i_OFF",(channel + '@'), number);
            client.publish(feedbackTopic, "OFF");
         }         
        Serial.println( feedback);
-       //client.publish(feedbackTopic, operation.c_str());
-
-	      }
+	    }
     }
 }
