@@ -1,40 +1,158 @@
-/*
-  Example for outlets which are configured with two rotary/sliding switches.
-  
-  http://code.google.com/p/rc-switch/
-*/
-
 #include <RCSwitch.h>
+#include <SPI.h>
+#include <EthernetV2_0.h>
+#include <PubSubClient.h>
+
+#define MQTT_CLIENTID "lightSwitchArduino"
+//#define MQTT_SERVER "192.168.5.148"
+#define MQTT_WILLTOPIC	"clients/LightSwitcharduino/"
+#define MQTT_WILLMESSAGE	"dead"
+//#define TRUE		(1)
+
+// Update these with values suitable for your network.
+byte mac[] = {  
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xCB };
+byte server[] = { 192, 168, 5, 148 };
+IPAddress ip(192,168,5,134);
+
+const int RCPin = 7;
+const int StatLED = 13;
 
 RCSwitch mySwitch = RCSwitch();
 
-void setup() {
+EthernetClient ethClient;
+PubSubClient client(server, 1883, callback, ethClient);
 
-  // Transmitter is connected to Arduino Pin #10  
-  mySwitch.enableTransmit(10);
+void setup() 
+{
+  Serial.begin(9600);
+
+  pinMode(6,OUTPUT);
+  // disable SD card if one in the slot
+  pinMode(4,OUTPUT);
+  digitalWrite(4,HIGH);
+
+    //crappy seeed studio ethernet shield needs to be manually reset
+  digitalWrite(6,LOW);  //Reset W5200
+  delay(200);
+  digitalWrite(6,HIGH);  
+ delay(500);       // wait W5200 work
+ 
+
+   pinMode(StatLED, OUTPUT);  // LED 
+  digitalWrite(StatLED, LOW);
+
   
-  // Optional set pulse length.
+  char willtopic[128] = MQTT_WILLTOPIC;
+ char ipstr[20];
+  Ethernet.begin(mac, ip);
+   Serial.println(Ethernet.localIP());
+  
+   sprintf(ipstr, "%03x:%03x:%03x:%03x",
+    ip[0], ip[1], ip[2], ip[3]);
+  
+  if (client.connect(MQTT_CLIENTID)) {
+   //client.publish(willtopic, NULL, 0, TRUE);
+    client.subscribe("/arduino/lightControl");
+    client.publish(willtopic, ipstr);
+    digitalWrite(StatLED, HIGH);
+  }
+  
+    mySwitch.enableTransmit(RCPin);
   // mySwitch.setPulseLength(320);
-  
 }
 
-void loop() {
+void loop() 
+{
+    if(!client.connected())
+  {
+     char willtopic[128] = MQTT_WILLTOPIC;
+    char ipstr[20];
+  
+  	sprintf(ipstr, "%03x:%03x:%03x:%03x",
+		ip[0], ip[1], ip[2], ip[3]);
+    
+      client.connect(MQTT_CLIENTID);
+      
+   //client.publish(willtopic, NULL, 0, TRUE);
+    client.subscribe("/arduino/lightControl");
+    client.publish(willtopic, ipstr);
+    digitalWrite(StatLED, HIGH);  
+  }
 
-  // Switch on:
-  // The first parameter represents the setting of the first rotary switch. 
-  // In this example it's switched to "1" or "A" or "I". 
-  // 
-  // The second parameter represents the setting of the second rotary switch. 
-  // In this example it's switched to "4" or "D" or "IV". 
-  mySwitch.switchOn(4, 2);
 
-  // Wait a second
-  delay(1000);
-  
-  // Switch off
-  mySwitch.switchOff(4, 2);
-  
-  // Wait another second
-  delay(1000);
-  
+client.loop();  
+}
+
+void callback(char* topic, byte* payload, unsigned int length) 
+{
+      char buff[length + 1];
+	int n;
+
+	for (n = 0; n < length; n++) {
+		buff[n] = payload[n];
+	}
+	buff[n] = '\0';
+
+	Serial.println(buff);
+
+	/*
+	 * Echo
+	 */
+	//client.publish("/arduino/echo", buff);
+
+	  if (!strcmp(topic, "/arduino/lightControl")) 
+    {
+      if(length==5||length==6)
+      {
+        //int number = atoi( buff[1] );
+        int number = buff[1] - '0';
+        int channel = 0;
+        //Serial.println(number);
+        //char channelChar;
+        if(buff[0] == 'A')
+        {
+          channel = 1;
+        }
+        else if(buff[0] == 'B')
+        {
+          channel = 2;
+        }
+        else if(buff[0] == 'C')
+        {
+          channel = 3;
+        }
+        else if(buff[0] == 'D')
+        {
+          channel = 4;
+          //Serial.println( "Channel: D");
+        }
+        //Serial.println(channel);
+        //char operation[4]  = buff.substring(3);
+
+        char feedback[length];  
+        char feedbackTopic[256];  
+        sprintf(feedbackTopic, "/arduino/lightControl/%c%i",buff[0], number);
+
+        if(strstr(buff, "ON"))
+        {
+           mySwitch.switchOn(channel, number);
+           delay(250);
+           mySwitch.switchOn(channel, number);
+           sprintf(feedback, "%c%i_ON",buff[0], number);
+           client.publish(feedbackTopic, "ON");
+        }
+        else
+        {
+          mySwitch.switchOff(channel, number);
+           delay(250);
+           mySwitch.switchOff(channel, number);
+           sprintf(feedback, "%c%i_OFF",buff[0], number);
+           client.publish(feedbackTopic, "OFF");
+        }         
+       Serial.println( feedback);
+       //client.publish(feedbackTopic, operation.c_str());
+
+	      }
+    }
 }
