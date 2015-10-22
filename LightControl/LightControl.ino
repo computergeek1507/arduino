@@ -53,7 +53,7 @@ void setup()
   
   if (client.connect(MQTT_CLIENTID)) {
    //client.publish(willtopic, NULL, 0, TRUE);
-    client.subscribe("/arduino/lightControl");
+    client.subscribe("arduino/lightControl");
     client.publish(willtopic, ipstr);
     digitalWrite(StatLED, HIGH);
   }
@@ -75,7 +75,7 @@ void loop()
       client.connect(MQTT_CLIENTID);
       
    //client.publish(willtopic, NULL, 0, TRUE);
-    client.subscribe("/arduino/lightControl");
+    client.subscribe("arduino/lightControl");
     client.publish(willtopic, ipstr);
     digitalWrite(StatLED, HIGH);  
   }
@@ -96,7 +96,7 @@ void callback(char* topic, byte* payload, unsigned int length)
 
 	Serial.println(buff);
 
-	  if (!strcmp(topic, "/arduino/lightControl")) 
+	  if (!strcmp(topic, "arduino/lightControl")) 
     {
       if(length==5||length==6)
       {
@@ -108,7 +108,7 @@ void callback(char* topic, byte* payload, unsigned int length)
 
         char feedback[length];  
         char feedbackTopic[256];  
-        sprintf(feedbackTopic, "/arduino/lightControl/%c%i",buff[0], number);
+        sprintf(feedbackTopic, "arduino/lightControl/%c%i",buff[0], number);
 
         if(strstr(buff, "ON"))
         {
