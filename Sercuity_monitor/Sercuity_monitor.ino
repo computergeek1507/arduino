@@ -21,24 +21,14 @@ const int analogInPin = A0;  // Analog input pin that the LED is attached to
 const int led = 13;
 
 const int homelinkOne = 2;
-const int plugOneOn = 3;
-const int plugOneOff = 5;
-const int plugTwoOn = 6;
-const int plugTwoOff = 9;
-const int plugThreeOn = 10;
-const int plugThreeOff = 11;
+
 
 int prevSensorValue = 0;        // value read from the pot
 
 void setup() {
   pinMode(led, OUTPUT);
   pinMode(homelinkOne, OUTPUT);
-  pinMode(plugOneOn, OUTPUT);
-  pinMode(plugOneOff, OUTPUT);
-  pinMode(plugTwoOn, OUTPUT);
-  pinMode(plugTwoOff, OUTPUT);
-  pinMode(plugThreeOn, OUTPUT);
-  pinMode(plugThreeOff, OUTPUT);
+
   // initialize serial communications at 9600 bps:
   Serial.begin(9600); 
   inputString.reserve(200);
@@ -54,42 +44,7 @@ void loop()
 {  
    if (stringComplete)
   {
-    if(inputString.indexOf("L11") >=0)
-    {
-      LightOneON(); 
-      delay(200); 
-      LightOneON(); 
-    }
-    if(inputString.indexOf("L10") >=0)
-    {
-      LightOneOFF();
-      delay(200); 
-      LightOneOFF();
-    }
-    if(inputString.indexOf("L21") >=0)
-    {
-      LightTwoON(); 
-      delay(200); 
-      LightTwoON();
-    }
-    if(inputString.indexOf("L20") >=0)
-    {
-      LightTwoOFF();
-      delay(300); 
-      LightTwoOFF();
-    }
-    if(inputString.indexOf("L31") >=0)
-    {
-      LightThreeON(); 
-      delay(200); 
-      LightThreeON();
-    }
-    if(inputString.indexOf("L30") >=0)
-    {
-      LightThreeOFF();
-      delay(200); 
-      LightThreeOFF();
-    }
+
     
     if(inputString.indexOf("GD1") >=0)
     {
@@ -138,49 +93,7 @@ void loop()
   //delay(100);                     
 }
 
-   void LightOneON()
-   {
-     digitalWrite(plugOneOn, HIGH);
-     //Serial.println("plugOneOn");
-     delay(300); 
-     digitalWrite(plugOneOn, LOW);
-     
-   }
-   void LightOneOFF()
-   {
-     digitalWrite(plugOneOff, HIGH);
-     //Serial.println("plugOneOff");
-     delay(300);
-     digitalWrite(plugOneOff, LOW);
-   }
-  void LightTwoON()
-   {
-     digitalWrite(plugTwoOn, HIGH);
-     //Serial.println("plugTwoOn");
-     delay(300); 
-     digitalWrite(plugTwoOn, LOW);
-   }
-   void LightTwoOFF()
-   {
-     digitalWrite(plugTwoOff, HIGH);
-     //Serial.println("plugTwoOff");
-     delay(300); 
-     digitalWrite(plugTwoOff, LOW);
-   }
-   void LightThreeON()
-   {
-     digitalWrite(plugThreeOn, HIGH);
-     //Serial.println("plugThreeOn");
-     delay(300); 
-     digitalWrite(plugThreeOn, LOW);
-   }
-   void LightThreeOFF()
-   {
-       digitalWrite(plugThreeOff, HIGH);
-       //Serial.println("plugThreeOff");
-       delay(300); 
-       digitalWrite(plugThreeOff, LOW);
-   }   
+  
    
    void GarageDoorOpen()
    {
