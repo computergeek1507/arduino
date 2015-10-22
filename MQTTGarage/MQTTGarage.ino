@@ -71,7 +71,7 @@ void setup()
   if (client.connect(MQTT_CLIENTID, MQTT_USER, MQTT_PASS, willtopic, MQTTQOS2, 1, MQTT_WILLMESSAGE)) {
    client.publish(willtopic, NULL, 0, TRUE);
     //client.publish("arduino/hello","hello world");
-    client.subscribe("/arduino/garagepushbutton");
+    client.subscribe("arduino/garagepushbutton");
     client.publish(willtopic, ipstr);
     digitalWrite(StatLED, HIGH);
   }
@@ -93,7 +93,7 @@ void loop()
       if (client.connect(MQTT_CLIENTID, MQTT_USER, MQTT_PASS, willtopic, MQTTQOS2, 1, MQTT_WILLMESSAGE)) {
    client.publish(willtopic, NULL, 0, TRUE);
     //client.publish("arduino/hello","hello world");
-    client.subscribe("/arduino/garagepushbutton");
+    client.subscribe("arduino/garagepushbutton");
     client.publish(willtopic, ipstr);
     digitalWrite(StatLED, HIGH);
   }
@@ -164,7 +164,7 @@ void SendOpenDoorReading()
       char openChar[openValue.length()+1]; 
     openValue.toCharArray(openChar, openValue.length()+1);
 
-    if(!client.publish("/arduino/garageopen", openChar)) 
+    if(!client.publish("arduino/garageopen", openChar)) 
     {
       Serial.print(F("Fail "));
       digitalWrite(StatLED, LOW);
@@ -184,7 +184,7 @@ void SendClosedDoorReading()
   String closedValue = BoolToOpenHAB(prevClosedValue);
      char closedChar[closedValue.length()+1]; 
     closedValue.toCharArray(closedChar, closedValue.length()+1);
-  if(!client.publish("/arduino/garageclose", closedChar) )
+  if(!client.publish("arduino/garageclose", closedChar) )
     {
       Serial.print(F("Fail "));
       digitalWrite(StatLED, LOW);
@@ -206,7 +206,7 @@ void SendStandardDoorReading()
      char standardChar[standardValue.length()+1]; 
     standardValue.toCharArray(standardChar, standardValue.length()+1);
 
-    if(!client.publish("/arduino/garagestddoor", standardChar) )
+    if(!client.publish("arduino/garagestddoor", standardChar) )
     {
       Serial.print(F("Fail "));
       digitalWrite(StatLED, LOW);
@@ -228,7 +228,7 @@ void SendPhotoReadings()
      char photoChar[photoValue.length()+1]; 
     photoValue.toCharArray(photoChar, photoValue.length()+1);
 
-    if(!client.publish("/arduino/garagephoto", photoChar)) 
+    if(!client.publish("arduino/garagephoto", photoChar)) 
     {
       Serial.print(F("Fail "));
       digitalWrite(StatLED, LOW);
@@ -252,7 +252,7 @@ void SendTempReadings()
     value.toCharArray(tempChar, value.length()+1);
     
    
-    if(!client.publish("/arduino/garagetemp", tempChar)) 
+    if(!client.publish("arduino/garagetemp", tempChar)) 
     {
       Serial.print(F("Fail "));
       digitalWrite(StatLED, LOW);
@@ -287,7 +287,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 	 */
 	//client.publish("arduino/echo", echostring);
 
-	if (!strcmp(topic, "/arduino/garagepushbutton")) {
+	if (!strcmp(topic, "arduino/garagepushbutton")) {
 		on = (*buff == '1') ? 1 : 0;
 
 		if (on) {

@@ -101,7 +101,7 @@ void SendPhotoReadings()
      char photoChar[photoValue.length()+1]; 
     photoValue.toCharArray(photoChar, photoValue.length()+1);
 
-    if(!client.publish("/arduino/washLED", photoChar)) 
+    if(!client.publish("arduino/washLED", photoChar)) 
     {
       Serial.print(F("Fail "));
       digitalWrite(StatLED, LOW);
