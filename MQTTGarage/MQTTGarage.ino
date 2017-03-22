@@ -1,8 +1,11 @@
+#include <PubSubClient.h>
+
 #include <SPI.h>
 #include <Ethernet.h>
 #include <PubSubClient.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
+#include <NewPing.h>
 
 #define MQTT_CLIENTID "garageArduino"
 //#define MQTT_SERVER "192.168.5.148"
@@ -14,10 +17,11 @@
 #define TRUE		(1)
 
 // Update these with values suitable for your network.
-byte mac[] = {  
-  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+byte mac[] = {
+  0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED
+};
 byte server[] = { 192, 168, 5, 148 };
-byte ip[] = { 192, 168, 5, 122 }; 
+byte ip[] = { 192, 168, 5, 122 };
 
 // set this to the number of milliseconds delay
 // this is 30 seconds
@@ -27,49 +31,67 @@ unsigned long thisMillis = 0;
 unsigned long lastMillis = 0;
 
 // the value of the 'other' resistor
-#define SERIESRESISTOR 10000  
+#define SERIESRESISTOR 10000
 
 const int openPin = A0;
 const int closedPin = A1;
 const int relayPin = 6;
-const int photoPin = A5;
+//const int photoPin = A5;
 const int StatLED = 5;
 const int stdDoorPin = 7;
+
+const int car1Pin = 0;
+const int car2Pin = 1;
+
+const int  resolution = 9;
+unsigned long lastTempRequest = 0;
+int  delayInMillis = 0;
+//float temperature = 0.0;
 
 int prevOpenValue = 2;    // open sensor Prev value
 int prevClosedValue = 2;   // close sensor Prev value
 int prevDoorValue = LOW;   /// standard door sensor Prev value
 
 //int samples[NUMSAMPLES];
-int prevPhotoValue = 0;
+//int prevPhotoValue = 0;
 float prevTemperatureValue = 150;
+
+unsigned int prevCar1 = 0;
+unsigned int prevCar2 = 0;
 
 OneWire  ds(3);// on pin 3 (a 4.7K resistor is necessary)
 DallasTemperature sensors(&ds);
 DeviceAddress outsideThermometer;
+
+#define MAX_DISTANCE 300 // Maximum distance we want to ping for (in centimeters). Maximum sensor distance is rated at 400-500cm.
+
+NewPing car1Ping(car1Pin, car1Pin, MAX_DISTANCE); // NewPing setup of pin and maximum distance.
+NewPing car2Ping(car2Pin, car2Pin, MAX_DISTANCE); // NewPing setup of pin and maximum distance.
+
+// Callback function header
+void callback(char* topic, byte* payload, unsigned int length);
 
 EthernetClient ethClient;
 PubSubClient client(server, 1883, callback, ethClient);
 
 void setup()
 {
-     // pinMode(openPin, INPUT);   // Open Sensor
+  // pinMode(openPin, INPUT);   // Open Sensor
   //pinMode(closedPin, INPUT);   // Closed Senser
-  pinMode(relayPin, OUTPUT);  // Switch Relay 
- pinMode(StatLED, OUTPUT);  // LED 
- pinMode(stdDoorPin, INPUT);   // Stand Door Senser
- digitalWrite(StatLED, LOW);
-  Serial.begin(9600);
+  pinMode(relayPin, OUTPUT);  // Switch Relay
+  pinMode(StatLED, OUTPUT);  // LED
+  pinMode(stdDoorPin, INPUT);   // Stand Door Senser
+  digitalWrite(StatLED, LOW);
+  //Serial.begin(9600);
   char willtopic[128] = MQTT_WILLTOPIC;
- char ipstr[20];
+  char ipstr[20];
   Ethernet.begin(mac, ip);
-  
-  	sprintf(ipstr, "%03x:%03x:%03x:%03x",
-		ip[0], ip[1], ip[2], ip[3]);
-  
-  
+
+  sprintf(ipstr, "%03x:%03x:%03x:%03x",
+          ip[0], ip[1], ip[2], ip[3]);
+
   if (client.connect(MQTT_CLIENTID, MQTT_USER, MQTT_PASS, willtopic, MQTTQOS2, 1, MQTT_WILLMESSAGE)) {
-   client.publish(willtopic, NULL, 0, TRUE);
+    client.publish(willtopic, NULL, 0, TRUE);
     //client.publish("arduino/hello","hello world");
     client.subscribe("arduino/garagepushbutton");
     client.publish(willtopic, ipstr);
@@ -77,190 +99,246 @@ void setup()
   }
   sensors.begin();
   sensors.getAddress(outsideThermometer, 0);
-  sensors.setResolution(outsideThermometer,9);
-  
+  sensors.setResolution(outsideThermometer, resolution);
+
+  sensors.setWaitForConversion(false);
+  sensors.requestTemperatures();
+  delayInMillis = 750 / (1 << (12 - resolution));
+  lastTempRequest = millis();
 }
 
 void loop()
-{  
-  if(!client.connected())
+{
+  if (!client.connected())
   {
     char willtopic[128] = MQTT_WILLTOPIC;
     char ipstr[20];
     sprintf(ipstr, "%03x:%03x:%03x:%03x",
-		ip[0], ip[1], ip[2], ip[3]);
-    
-      if (client.connect(MQTT_CLIENTID, MQTT_USER, MQTT_PASS, willtopic, MQTTQOS2, 1, MQTT_WILLMESSAGE)) {
-   client.publish(willtopic, NULL, 0, TRUE);
-    //client.publish("arduino/hello","hello world");
-    client.subscribe("arduino/garagepushbutton");
-    client.publish(willtopic, ipstr);
-    digitalWrite(StatLED, HIGH);
+            ip[0], ip[1], ip[2], ip[3]);
+
+    if (client.connect(MQTT_CLIENTID, MQTT_USER, MQTT_PASS, willtopic, MQTTQOS2, 1, MQTT_WILLMESSAGE)) {
+      client.publish(willtopic, NULL, 0, TRUE);
+      //client.publish("arduino/hello","hello world");
+      client.subscribe("arduino/garagepushbutton");
+      client.publish(willtopic, ipstr);
+      digitalWrite(StatLED, HIGH);
+    }
   }
-  
-  }
-  
+
   thisMillis = millis();
 
-  if(thisMillis - lastMillis > delayMillis)
+  if (thisMillis - lastTempRequest >= delayInMillis) // waited long enough??
+  {
+    float newTemperatureValue = ReadTemperature();
+
+    if (abs(prevTemperatureValue - newTemperatureValue) > 0.1 )
+    {
+      if (newTemperatureValue != 0.0)
+      {
+        prevTemperatureValue = newTemperatureValue;
+      }
+    }
+    sensors.requestTemperatures();
+    lastTempRequest = thisMillis;
+  }
+
+  if (thisMillis - lastMillis > delayMillis)
   {
     lastMillis = thisMillis;
     SendTempReadings();
-    SendPhotoReadings();
+    //SendPhotoReadings();
     //SendOpenDoorReading();
     //SendClosedDoorReading();
     //SendStandardDoorReading();
     //totalCount++;
     //Serial.println(totalCount,DEC);
-  }  
-  
-    int newDoorValue = digitalRead(stdDoorPin);
-    
-      if(newDoorValue!=prevDoorValue)
-{
-  prevDoorValue=newDoorValue;
-  SendStandardDoorReading();
-}
-
-int newOpenValue = Evaluate(ReadAnalogValue(openPin)); 
-int newClosedValue = Evaluate(ReadAnalogValue(closedPin));
-
-    if(prevOpenValue != newOpenValue)
-{
-  prevOpenValue=newOpenValue;
-  SendOpenDoorReading();
-}
- if(prevClosedValue!=newClosedValue)
-{
-  prevClosedValue=newClosedValue;
-  SendClosedDoorReading();
-}
-
-int newPhotoValue = ReadAnalogValue(photoPin);
-  
-  if(abs(prevPhotoValue-newPhotoValue)>5 )
-{
-  prevPhotoValue=newPhotoValue;
-  //SendPhotoReadings();
-}
-
-  float newTemperatureValue = ReadTemperature();
-  
-  if(abs(prevTemperatureValue-newTemperatureValue)>0.1 )
-{
-  if(newTemperatureValue != 0.0)
-  {
-    prevTemperatureValue=newTemperatureValue;
   }
-//  SendTempReadings(); 
-} 
+
+  int newDoorValue = digitalRead(stdDoorPin);
+
+  if (newDoorValue != prevDoorValue)
+  {
+    prevDoorValue = newDoorValue;
+    SendStandardDoorReading();
+  }
+
+  int newOpenValue = Evaluate(ReadAnalogValue(openPin));
+  int newClosedValue = Evaluate(ReadAnalogValue(closedPin));
+
+  if (prevOpenValue != newOpenValue)
+  {
+    prevOpenValue = newOpenValue;
+    SendOpenDoorReading();
+  }
+  if (prevClosedValue != newClosedValue)
+  {
+    prevClosedValue = newClosedValue;
+    SendClosedDoorReading();
+  }
+
+  unsigned int newCar1Value = (car1Ping.ping_median(3) / US_ROUNDTRIP_CM);
+  unsigned int newCar2Value = (car2Ping.ping_median(3) / US_ROUNDTRIP_CM);
+  //unsigned int newCar1Value = car1Ping.ping_cm();
+  //unsigned int newCar2Value = car2Ping.ping_cm();
+  if (abs(prevCar1 - newCar1Value) > 5 )
+  {
+    prevCar1 = newCar1Value;
+    SendCar1Reading();
+  }
+  if (abs(prevCar2 - newCar2Value) > 5 )
+  {
+    prevCar2 = newCar2Value;
+    SendCar2Reading();
+  }
+
+  //int newPhotoValue = ReadAnalogValue(photoPin);
+
+  //  if(abs(prevPhotoValue-newPhotoValue)>5 )
+  //{
+  //  prevPhotoValue=newPhotoValue;
+  //SendPhotoReadings();
+  //}
 
   client.loop();
+  delay(1);
 }
 
-void SendOpenDoorReading() 
+void SendCar1Reading()
 {
-      String openValue = BoolToOpenHAB(prevOpenValue);
-      char openChar[openValue.length()+1]; 
-    openValue.toCharArray(openChar, openValue.length()+1);
-
-    if(!client.publish("arduino/garageopen", openChar)) 
-    {
-      Serial.print(F("Fail "));
-      digitalWrite(StatLED, LOW);
-    }
-    else{
-     Serial.print(F("Pass "));
-     digitalWrite(StatLED, HIGH);
-    }
-  
-  
-  String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
-  Serial.println(stringStat);
+  String closedValue = String(prevCar1);
+  char closedChar[closedValue.length() + 1];
+  closedValue.toCharArray(closedChar, closedValue.length() + 1);
+  if (!client.publish("arduino/garagecar1", closedChar) )
+  {
+    //Serial.print(F("Fail "));
+    digitalWrite(StatLED, LOW);
+  }
+  else
+  {
+    //Serial.print(F("Pass "));
+    digitalWrite(StatLED, HIGH);
+  }
+  // String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
+  // Serial.println(stringStat);
 }
 
-void SendClosedDoorReading() 
+void SendCar2Reading()
+{
+  String closedValue = String(prevCar2);
+  char closedChar[closedValue.length() + 1];
+  closedValue.toCharArray(closedChar, closedValue.length() + 1);
+  if (!client.publish("arduino/garagecar2", closedChar) )
+  {
+    // Serial.print(F("Fail "));
+    digitalWrite(StatLED, LOW);
+  }
+  else
+  {
+    // Serial.print(F("Pass "));
+    digitalWrite(StatLED, HIGH);
+  }
+
+  // String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
+  // Serial.println(stringStat);
+}
+
+void SendOpenDoorReading()
+{
+  String openValue = BoolToOpenHAB(prevOpenValue);
+  char openChar[openValue.length() + 1];
+  openValue.toCharArray(openChar, openValue.length() + 1);
+
+  if (!client.publish("arduino/garageopen", openChar))
+  {
+    //Serial.print(F("Fail "));
+    digitalWrite(StatLED, LOW);
+  }
+  else
+  {
+    //Serial.print(F("Pass "));
+    digitalWrite(StatLED, HIGH);
+  }
+  // String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
+  // Serial.println(stringStat);
+}
+
+void SendClosedDoorReading()
 {
   String closedValue = BoolToOpenHAB(prevClosedValue);
-     char closedChar[closedValue.length()+1]; 
-    closedValue.toCharArray(closedChar, closedValue.length()+1);
-  if(!client.publish("arduino/garageclose", closedChar) )
-    {
-      Serial.print(F("Fail "));
-      digitalWrite(StatLED, LOW);
-    }
-    else
-    {
-     Serial.print(F("Pass "));
-     digitalWrite(StatLED, HIGH);
-    }
-  
-  String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
-  Serial.println(stringStat);
-
+  char closedChar[closedValue.length() + 1];
+  closedValue.toCharArray(closedChar, closedValue.length() + 1);
+  if (!client.publish("arduino/garageclose", closedChar) )
+  {
+    //Serial.print(F("Fail "));
+    digitalWrite(StatLED, LOW);
+  }
+  else
+  {
+    //Serial.print(F("Pass "));
+    digitalWrite(StatLED, HIGH);
+  }
+  //  String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
+  // Serial.println(stringStat);
 }
 
-void SendStandardDoorReading() 
-{   
-  String standardValue = String(prevDoorValue);
-     char standardChar[standardValue.length()+1]; 
-    standardValue.toCharArray(standardChar, standardValue.length()+1);
-
-    if(!client.publish("arduino/garagestddoor", standardChar) )
-    {
-      Serial.print(F("Fail "));
-      digitalWrite(StatLED, LOW);
-    }
-    else
-    {
-     Serial.print(F("Pass "));
-     digitalWrite(StatLED, HIGH);
-    }
-  
-  String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
-  Serial.println(stringStat);
-
-}
-
-void SendPhotoReadings() 
+void SendStandardDoorReading()
 {
+  String standardValue = String(prevDoorValue);
+  char standardChar[standardValue.length() + 1];
+  standardValue.toCharArray(standardChar, standardValue.length() + 1);
+
+  if (!client.publish("arduino/garagestddoor", standardChar) )
+  {
+    //Serial.print(F("Fail "));
+    digitalWrite(StatLED, LOW);
+  }
+  else
+  {
+    //Serial.print(F("Pass "));
+    digitalWrite(StatLED, HIGH);
+  }
+  // String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
+  // Serial.println(stringStat);
+}
+/*
+  void SendPhotoReadings()
+  {
    String photoValue = String(prevPhotoValue);
-     char photoChar[photoValue.length()+1]; 
+     char photoChar[photoValue.length()+1];
     photoValue.toCharArray(photoChar, photoValue.length()+1);
 
-    if(!client.publish("arduino/garagephoto", photoChar)) 
+    if(!client.publish("arduino/garagephoto", photoChar))
     {
-      Serial.print(F("Fail "));
+      //Serial.print(F("Fail "));
       digitalWrite(StatLED, LOW);
     }
     else
     {
-     Serial.print(F("Pass "));
+     //Serial.print(F("Pass "));
      digitalWrite(StatLED, HIGH);
     }
-  
-  String stringStat =  "PHOTO,"+String(prevPhotoValue);
-  Serial.println(stringStat);
 
-}
+  // String stringStat =  "PHOTO,"+String(prevPhotoValue);
+  // Serial.println(stringStat);
 
-void SendTempReadings() 
+  }
+*/
+void SendTempReadings()
 {
- char buffer[5];
-    String value = dtostrf(prevTemperatureValue, 4, 1, buffer);    
-    char tempChar[value.length()+1]; 
-    value.toCharArray(tempChar, value.length()+1);
-    
-   
-    if(!client.publish("arduino/garagetemp", tempChar)) 
-    {
-      Serial.print(F("Fail "));
-      digitalWrite(StatLED, LOW);
-    }
-    else{
-      Serial.print(F("Pass "));
-      digitalWrite(StatLED, HIGH);
-    }
+  char buffer[5];
+  String value = dtostrf(prevTemperatureValue, 4, 1, buffer);
+  char tempChar[value.length() + 1];
+  value.toCharArray(tempChar, value.length() + 1);
+
+  if (!client.publish("arduino/garagetemp", tempChar))
+  {
+    //   Serial.print(F("Fail "));
+    digitalWrite(StatLED, LOW);
+  }
+  else {
+    // Serial.print(F("Pass "));
+    digitalWrite(StatLED, HIGH);
+  }
 }
 
 void OpenDoor() {
@@ -270,75 +348,82 @@ void OpenDoor() {
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-      char buff[256], echostring[512];
-	int n, on;
+  char buff[256], echostring[512];
+  int n, on;
 
-	for (n = 0; (n < length) && (n < sizeof(buff) - 1); n++) {
-		buff[n] = payload[n];
-	}
-	buff[n] = 0;
+  for (n = 0; (n < length) && (n < sizeof(buff) - 1); n++) {
+    buff[n] = payload[n];
+  }
+  buff[n] = 0;
 
-	//sprintf(echostring, "%s: %s", topic, buff);
+  //sprintf(echostring, "%s: %s", topic, buff);
 
-	Serial.println(echostring);
+  //	Serial.println(echostring);
 
-	/*
-	 * Echo
-	 */
-	//client.publish("arduino/echo", echostring);
-
-	if (!strcmp(topic, "arduino/garagepushbutton")) {
-		on = (*buff == '1') ? 1 : 0;
-
-		if (on) {
-			OpenDoor();
-		} 
-	}
-
-	//client.publish("arduino/hello", "hello");
+  /*
+     Echo
+  */
+  //client.publish("arduino/echo", echostring);
+  if (!strcmp(topic, "arduino/garagepushbutton"))
+  {
+    on = (*buff == '1') ? 1 : 0;
+    if (on)
+    {
+      OpenDoor();
+    }
+  }
+  //client.publish("arduino/hello", "hello");
 }
 
 int ReadAnalogValue(int pinNumber)
 {
   int loopValue = 0;
-  
+
   //average 10 readings for kicks
   int i = 0;
-  for (i = 0; i < 10; i++)  
+  for (i = 0; i < 10; i++)
   {
-     int readValue = analogRead(pinNumber); 
-     loopValue = loopValue + readValue; 
-       delay(2);  
+    int readValue = analogRead(pinNumber);
+    loopValue = loopValue + readValue;
+    delay(2);
   }
-  
-  return ( loopValue/i);
+
+  return ( loopValue / i);
 }
 
-float ReadTemperature(){
+float ReadTemperature() {
 
   //celsius = (float)raw / 16.0;
   //fahrenheit = celsius * 1.8 + 32.0;
-  
-   sensors.requestTemperatures();
 
-    return sensors.getTempF(outsideThermometer);
+  // sensors.requestTemperatures();
+
+  return sensors.getTempF(outsideThermometer);
   //return sensors.getTempFByIndex(0);
-//return 1;
+  //return 1;
   //return steinhart;
 }
 
 int Evaluate(int reading)
 {
-  if(reading < 800){
+  if (reading < 800) {
     return 1;
   }
-   return 0;
- }
+  return 0;
+}
+
+int EvaluateCar(unsigned int reading)
+{
+  if (reading < 205) {
+    return 1;
+  }
+  return 0;
+}
 
 String BoolToOpenHAB(int stat)
 {
-  if(stat == 1){
+  if (stat == 1) {
     return "ON";
   }
-   return "OFF";
- }
+  return "OFF";
+}
