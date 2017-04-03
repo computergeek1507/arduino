@@ -40,8 +40,8 @@ const int relayPin = 6;
 const int StatLED = 5;
 const int stdDoorPin = 7;
 
-const int car1Pin = 0;
-const int car2Pin = 1;
+const int car1Pin = 16;//A2
+const int car2Pin = 17;//A3
 
 const int  resolution = 9;
 unsigned long lastTempRequest = 0;
@@ -50,7 +50,7 @@ int  delayInMillis = 0;
 
 int prevOpenValue = 2;    // open sensor Prev value
 int prevClosedValue = 2;   // close sensor Prev value
-int prevDoorValue = LOW;   /// standard door sensor Prev value
+int prevDoorValue = HIGH;   /// standard door sensor Prev value
 
 //int samples[NUMSAMPLES];
 //int prevPhotoValue = 0;
@@ -283,7 +283,7 @@ void SendClosedDoorReading()
 
 void SendStandardDoorReading()
 {
-  String standardValue = String(prevDoorValue);
+  String standardValue = BoolToOpenHAB(prevDoorValue);
   char standardChar[standardValue.length() + 1];
   standardValue.toCharArray(standardChar, standardValue.length() + 1);
 
