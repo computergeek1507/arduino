@@ -1,5 +1,6 @@
 #include <PubSubClient.h>
 
+
 #include <SPI.h>
 #include <Ethernet.h>
 #include <PubSubClient.h>
@@ -180,15 +181,21 @@ void loop()
   unsigned int newCar2Value = (car2Ping.ping_median(3) / US_ROUNDTRIP_CM);
   //unsigned int newCar1Value = car1Ping.ping_cm();
   //unsigned int newCar2Value = car2Ping.ping_cm();
-  if (abs(prevCar1 - newCar1Value) > 5 )
+  if( newCar1Value != 0 )
   {
-    prevCar1 = newCar1Value;
-    SendCar1Reading();
+    if (abs(prevCar1 - newCar1Value) > 5 )
+    {
+      prevCar1 = newCar1Value;
+      SendCar1Reading();
+    }
   }
-  if (abs(prevCar2 - newCar2Value) > 5 )
+  if( newCar2Value != 0 )
   {
-    prevCar2 = newCar2Value;
-    SendCar2Reading();
+    if (abs(prevCar2 - newCar2Value) > 5 )
+    {
+      prevCar2 = newCar2Value;
+      SendCar2Reading();
+    }
   }
 
   //int newPhotoValue = ReadAnalogValue(photoPin);
