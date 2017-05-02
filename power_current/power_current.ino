@@ -19,11 +19,11 @@ byte server[] = { 192, 168, 5, 148 };
 IPAddress ip(192,168,5,133);
 
 void callback(char* topic, byte* payload, unsigned int length);
-const int StatLED = 13;
+const int StatLED = 9;
 
 // set this to the number of milliseconds delay
-// this is 30 seconds
-#define delayMillis 30000UL
+// this is 10 seconds
+#define delayMillis 10000UL
 
 unsigned long thisMillis = 0;
 unsigned long lastMillis = 0;
@@ -49,22 +49,21 @@ void setup()
   digitalWrite(6,LOW);  //Reset W5200
   delay(200);
   digitalWrite(6,HIGH);  
- delay(500);       // wait W5200 work
+  delay(500);       // wait W5200 work
  
-
-   pinMode(StatLED, OUTPUT);  // LED 
+  pinMode(StatLED, OUTPUT);  // LED 
   digitalWrite(StatLED, LOW);
-
   
   char willtopic[128] = MQTT_WILLTOPIC;
- char ipstr[20];
+  char ipstr[20];
   Ethernet.begin(mac, ip);
-   Serial.println(Ethernet.localIP());
+  Serial.println(Ethernet.localIP());
   
-   sprintf(ipstr, "%03x:%03x:%03x:%03x",
+  sprintf(ipstr, "%03x:%03x:%03x:%03x",
     ip[0], ip[1], ip[2], ip[3]);
   
-  if (client.connect(MQTT_CLIENTID)) {
+  if (client.connect(MQTT_CLIENTID))
+  {
    //client.publish(willtopic, NULL, 0, TRUE);
    // client.subscribe("arduino/lightControl");
     client.publish(willtopic, ipstr);
@@ -77,11 +76,6 @@ void setup()
 
 void loop()
 {
-  double Irms = emon1.calcIrms(1480);  // Calculate Irms only
-  
- // Serial.print(Irms*230.0);	       // Apparent power
- // Serial.print(" ");
- // Serial.println(Irms);		       // Irms
   if(!client.connected())
   {
     char willtopic[128] = MQTT_WILLTOPIC;
@@ -89,13 +83,12 @@ void loop()
     sprintf(ipstr, "%03x:%03x:%03x:%03x",
     ip[0], ip[1], ip[2], ip[3]);
     
-      if (client.connect(MQTT_CLIENTID)) {
-   //client.publish(willtopic, NULL, 0, TRUE);
-
-    client.publish(willtopic, ipstr);
-    digitalWrite(StatLED, HIGH);
-  }
-  
+    if (client.connect(MQTT_CLIENTID)) 
+    {
+      //client.publish(willtopic, NULL, 0, TRUE);
+      client.publish(willtopic, ipstr);
+      digitalWrite(StatLED, HIGH);
+    }  
   }
   
   thisMillis = millis();
@@ -111,15 +104,17 @@ void loop()
   } 
   prevCurrent1Value = emon1.calcIrms(1480); 
   prevCurrent2Value = emon2.calcIrms(1480); 
-  
+  delay(100);
   client.loop();
 }
 
-void callback(char* topic, byte* payload, unsigned int length) {
-      char buff[256];
+void callback(char* topic, byte* payload, unsigned int length) 
+{
+  char buff[256];
   int n;
 
-  for (n = 0; (n < length) && (n < sizeof(buff) - 1); n++) {
+  for (n = 0; (n < length) && (n < sizeof(buff) - 1); n++)
+  {
     buff[n] = payload[n];
   }
   buff[n] = '\0';
@@ -127,7 +122,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 void SendPowerReading1() 
 {
-   char buffer[5];
+  char buffer[5];
   String value = dtostrf(prevCurrent1Value, 4, 1, buffer);
   char tempChar[value.length() + 1];
   value.toCharArray(tempChar, value.length() + 1);
@@ -137,15 +132,15 @@ void SendPowerReading1()
     //   Serial.print(F("Fail "));
     digitalWrite(StatLED, LOW);
   }
-  else {
+  else
+  {
     // Serial.print(F("Pass "));
     digitalWrite(StatLED, HIGH);
   }
-
 }
 void SendPowerReading2() 
 {
-   char buffer[5];
+  char buffer[5];
   String value = dtostrf(prevCurrent2Value, 4, 1, buffer);
   char tempChar[value.length() + 1];
   value.toCharArray(tempChar, value.length() + 1);
@@ -155,9 +150,9 @@ void SendPowerReading2()
     //   Serial.print(F("Fail "));
     digitalWrite(StatLED, LOW);
   }
-  else {
+  else
+  {
     // Serial.print(F("Pass "));
     digitalWrite(StatLED, HIGH);
   }
-
 }
