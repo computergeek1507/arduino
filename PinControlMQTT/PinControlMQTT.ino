@@ -101,6 +101,15 @@ void callback(char* topic, byte* payload, unsigned int length)
           pinMode(channel, OUTPUT);  // output
         digitalWrite(channel, number);
        Serial.println( feedback);
+       if(number==1)
+        {
+         client.publish(feedbackTopic, "ON");
+        }
+        else
+        {
+          client.publish(feedbackTopic, "OFF");
+        }
+        
       }
     }
 }
