@@ -65,7 +65,6 @@ void setup()
   digitalWrite(StatLED, LOW);
   
   char willtopic[128] = MQTT_WILLTOPIC;
-  char ipstr[20];
   Ethernet.begin(mac, ip);
   Serial.println(Ethernet.localIP());
   
