@@ -104,7 +104,7 @@ void loop()
   } 
   prevCurrent1Value = emon1.calcIrms(1480); 
   prevCurrent2Value = emon2.calcIrms(1480); 
-  delay(100);
+ // delay(100);
   client.loop();
 }
 
