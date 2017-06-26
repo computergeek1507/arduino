@@ -53,6 +53,9 @@ int prevOpenValue = 2;    // open sensor Prev value
 int prevClosedValue = 2;   // close sensor Prev value
 int prevDoorValue = HIGH;   /// standard door sensor Prev value
 
+int prevOpenValueRaw = 0;    // open sensor Prev value
+int prevClosedValueRaw = 0;   // close sensor Prev value
+
 //int samples[NUMSAMPLES];
 //int prevPhotoValue = 0;
 float prevTemperatureValue = 150;
@@ -163,8 +166,10 @@ void loop()
     SendStandardDoorReading();
   }
 
-  int newOpenValue = Evaluate(ReadAnalogValue(openPin));
-  int newClosedValue = Evaluate(ReadAnalogValue(closedPin));
+  prevOpenValueRaw = ReadAnalogValue(openPin);
+  int newOpenValue = Evaluate(prevOpenValueRaw);
+  prevClosedValueRaw = ReadAnalogValue(closedPin);
+  int newClosedValue = Evaluate(prevClosedValueRaw);
 
   if (prevOpenValue != newOpenValue)
   {
@@ -183,7 +188,7 @@ void loop()
   //unsigned int newCar2Value = car2Ping.ping_cm();
   if( newCar1Value != 0 )
   {
-    if (abs(prevCar1 - newCar1Value) > 5 )
+    if (abs(prevCar1 - newCar1Value) > 11 )
     {
       prevCar1 = newCar1Value;
       SendCar1Reading();
@@ -191,7 +196,7 @@ void loop()
   }
   if( newCar2Value != 0 )
   {
-    if (abs(prevCar2 - newCar2Value) > 5 )
+    if (abs(prevCar2 - newCar2Value) > 11 )
     {
       prevCar2 = newCar2Value;
       SendCar2Reading();
@@ -267,6 +272,21 @@ void SendOpenDoorReading()
   }
   // String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
   // Serial.println(stringStat);
+
+   String strOpenValue = String(prevOpenValueRaw);
+    char strOpenChar[strOpenValue.length()+1];
+    strOpenValue.toCharArray(strOpenChar, strOpenValue.length()+1);
+
+    if(!client.publish("arduino/garageopenraw", strOpenChar))
+    {
+      //Serial.print(F("Fail "));
+      digitalWrite(StatLED, LOW);
+    }
+    else
+    {
+     //Serial.print(F("Pass "));
+     digitalWrite(StatLED, HIGH);
+    }
 }
 
 void SendClosedDoorReading()
@@ -286,6 +306,21 @@ void SendClosedDoorReading()
   }
   //  String stringStat =  "STAT,"+String(prevOpenValue)+","+String(prevClosedValue);
   // Serial.println(stringStat);
+
+    String strClosedValue = String(prevClosedValueRaw);
+    char strClosedChar[strClosedValue.length()+1];
+    strClosedValue.toCharArray(strClosedChar, strClosedValue.length()+1);
+
+    if(!client.publish("arduino/garagecloseraw", strClosedChar))
+    {
+      //Serial.print(F("Fail "));
+      digitalWrite(StatLED, LOW);
+    }
+    else
+    {
+     //Serial.print(F("Pass "));
+     digitalWrite(StatLED, HIGH);
+    }
 }
 
 void SendStandardDoorReading()
@@ -413,7 +448,7 @@ float ReadTemperature() {
 
 int Evaluate(int reading)
 {
-  if (reading < 800) {
+  if (reading < 850) {
     return 1;
   }
   return 0;
