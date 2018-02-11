@@ -26,7 +26,12 @@ unsigned long lastMillis = 0;
 
 const int StatLED = 13;
 const int washPin = A0;
+const int waterPin = 8;
 int prevWashValue = 0;
+int prevWaterValue = LOW;   /// water sensor Prev value
+
+// Callback function header
+void callback(char* topic, byte* payload, unsigned int length);
 
 EthernetClient ethClient;
 PubSubClient client(server, 1883, callback, ethClient);
@@ -37,6 +42,7 @@ void setup()
   //pinMode(closedPin, INPUT);   // Closed Senser
 
  pinMode(StatLED, OUTPUT);  // LED 
+  pinMode(waterPin, INPUT_PULLUP);  // Water Pin Turn On Pullup
 
  digitalWrite(StatLED, LOW);
   Serial.begin(9600);
@@ -83,7 +89,15 @@ void loop()
     SendPhotoReadings();
     //totalCount++;
     //Serial.println(totalCount,DEC);
-  } 
+  }
+  
+  int newWaterValue = digitalRead(waterPin);
+
+  if (prevWaterValue != newWaterValue)
+  {
+    prevWaterValue = newWaterValue;
+    SendWaterReading();
+  }
 
 int newWashValue = ReadAnalogValue(washPin);
   
@@ -115,6 +129,26 @@ void SendPhotoReadings()
   String stringStat =  "WASH,"+String(prevWashValue);
   Serial.println(stringStat);
 
+}
+
+void SendWaterReading()
+{
+  String waterValue = BoolToOpenHAB(prevWaterValue);
+  char waterChar[waterValue.length() + 1];
+  waterValue.toCharArray(waterChar, waterValue.length() + 1);
+
+  if (!client.publish("arduino/washWATER", waterChar) )
+  {
+    //Serial.print(F("Fail "));
+    digitalWrite(StatLED, LOW);
+  }
+  else
+  {
+    //Serial.print(F("Pass "));
+    digitalWrite(StatLED, HIGH);
+  }
+    String stringStat =  "WATER,"+String(prevWaterValue);
+  Serial.println(stringStat);
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
@@ -151,9 +185,11 @@ int Evaluate(int reading)
    return 0;
  }
 
+
+//pulled up(HIGH  or 0x01) is the default so low 0r 0x00 is the non default low state 
 String BoolToOpenHAB(int stat)
 {
-  if(stat == 1){
+  if(stat == 0){
     return "ON";
   }
    return "OFF";
