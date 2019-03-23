@@ -45,6 +45,8 @@ int windgustdirection_10m[10]; //10 ints to keep track of 10 minute max
 int winddir = 0; // [0-360 instantaneous wind direction]
 float windspeedmph = 0; // [mph instantaneous wind speed]
 
+int windADC = 0; 
+
 float windgustmph = 0; // [mph current wind gust, using software specific time period]
 int windgustdir = 0; // [0-360 using software specific time period]
 float windspdmph_avg2m = 0; // [mph 2 minute average wind speed mph]
@@ -52,12 +54,8 @@ int winddir_avg2m = 0; // [0-360 2 minute average wind direction]
 float windgustmph_10m = 0; // [mph past 10 minutes wind gust mph ]
 int windgustdir_10m = 0; // [0-360 past 10 minutes wind gust direction]
 
-// Callback function header
-
-void callback(char* topic, byte* payload, unsigned int length);
-
 EthernetClient ethClient;
-PubSubClient client(server, 1883, callback, ethClient);
+PubSubClient client(server, 1883, ethClient);
 
 void wspeedIRQ()
 // Activated by the magnet in the anemometer (2 ticks per rotation), attached to input D3
@@ -71,11 +69,11 @@ void wspeedIRQ()
 
 void setup() 
 {
-  Serial.begin(9600);
+  //Serial.begin(9600);
 
  // pinMode(6,OUTPUT);
 
-Serial.println("starting");
+//Serial.println("starting");
     //crappy seeed studio ethernet shield needs to be manually reset
  // digitalWrite(6,LOW);  //Reset W5200
  // delay(200);
@@ -91,7 +89,7 @@ Serial.println("starting");
     lastSecond = millis();  
   char willtopic[128] = MQTT_WILLTOPIC;
   Ethernet.begin(mac, ip);
-   Serial.println(Ethernet.localIP());
+   //Serial.println(Ethernet.localIP());
   
  if (client.connect(MQTT_CLIENTID, willtopic, MQTTQOS2, 1, MQTT_WILLMESSAGE))
  {
@@ -102,7 +100,7 @@ Serial.println("starting");
 
     // turn on interrupts
     interrupts();
-    Serial.println("Weather Shield online!");
+    //Serial.println("Weather Shield online!");
 }
 
 void loop() 
@@ -238,13 +236,14 @@ float get_wind_speed()
 //Read the wind direction sensor, return heading in degrees
 int get_wind_direction()
 {
-    unsigned int adc;
+    //int adc;
 
-    adc = analogRead(WDIR); // get the current reading from the sensor
+    int adc = analogRead(WDIR); // get the current reading from the sensor
 
     // The following table is ADC readings for the wind direction sensor output, sorted from low to high.
     // Each threshold is the midpoint between adjacent headings. The output is degrees for that ADC reading.
     // Note that these are not in compass degree order! See Weather Meters datasheet for more information.
+    windADC = adc;
 
     if (adc < 380) return (113);
     if (adc < 393) return (68);
@@ -278,15 +277,25 @@ void printWeather()
     SendWindDirectionavg2m();
     SendWindGustDirection10m();
     SendWindGustSpeedMPH10m();
+    SendWindADC();
+}
+
+void SendWindADC() 
+{
+    char windADCChar[16]; 
+    itoa(windADC, windADCChar, 10);
+    client.publish("arduino/weather/windadc", windADCChar);     
+    //Serial.print("windadc:");
+    //Serial.println(windADCChar);
 }
 
 void SendWindDirection() 
 {
-    char winDirChar[16]; 
-    itoa(winddir, winDirChar, 10);
-    client.publish("arduino/weather/windir", winDirChar);     
-    Serial.print("windir:");
-    Serial.println(winDirChar);
+    char windDirChar[16]; 
+    itoa(winddir, windDirChar, 10);
+    client.publish("arduino/weather/winddir", windDirChar);     
+    //Serial.print("winddir:");
+    //Serial.println(windDirChar);
 }
 
 void SendWindSpeedMPH() 
@@ -294,8 +303,8 @@ void SendWindSpeedMPH()
    char winSpeedChar[256]; 
    dtostrf(windspeedmph, 3, 2, winSpeedChar);
    client.publish("arduino/weather/windspeedmph", winSpeedChar);
-   Serial.print("windspeedmph:");
-   Serial.println(winSpeedChar);
+   //Serial.print("windspeedmph:");
+   //Serial.println(winSpeedChar);
 }
 
 void SendWindGustDirection() 
@@ -303,8 +312,8 @@ void SendWindGustDirection()
     char winDirChar[16]; 
     itoa(windgustdir, winDirChar, 10);
     client.publish("arduino/weather/windgustdir", winDirChar);     
-    Serial.print("windgustdir:");
-    Serial.println(winDirChar);
+    //Serial.print("windgustdir:");
+    //Serial.println(winDirChar);
 }
 
 void SendWindGustSpeedMPH() 
@@ -312,8 +321,8 @@ void SendWindGustSpeedMPH()
    char winSpeedChar[256]; 
    dtostrf(windgustmph, 3, 2, winSpeedChar);
    client.publish("arduino/weather/windgustspeedmph", winSpeedChar);
-   Serial.print("windgustmph:");
-   Serial.println(winSpeedChar);
+   //Serial.print("windgustmph:");
+   //Serial.println(winSpeedChar);
 }
 
 void SendWindSpeedMPHavg2m() 
@@ -321,8 +330,8 @@ void SendWindSpeedMPHavg2m()
    char winSpeedChar[256]; 
    dtostrf(windspdmph_avg2m, 3, 2, winSpeedChar);
    client.publish("arduino/weather/windspeedmphavg2m", winSpeedChar);
-   Serial.print("windspdmph_avg2m:");
-   Serial.println(winSpeedChar);
+   //Serial.print("windspdmph_avg2m:");
+   //Serial.println(winSpeedChar);
 }
 
 void SendWindDirectionavg2m() 
@@ -330,8 +339,8 @@ void SendWindDirectionavg2m()
     char winDirChar[16]; 
     itoa(winddir_avg2m, winDirChar, 10);
     client.publish("arduino/weather/winddiravg2m", winDirChar);     
-    Serial.print("winddir_avg2m:");
-    Serial.println(winDirChar);
+    //Serial.print("winddir_avg2m:");
+    //Serial.println(winDirChar);
 }
 
 void SendWindGustDirection10m() 
@@ -339,8 +348,8 @@ void SendWindGustDirection10m()
     char winDirChar[16]; 
     itoa(windgustdir_10m, winDirChar, 10);
     client.publish("arduino/weather/windgustdir10m", winDirChar);     
-    Serial.print("windgustdir10m:");
-    Serial.println(winDirChar);
+    //Serial.print("windgustdir10m:");
+    //Serial.println(winDirChar);
 }
 
 void SendWindGustSpeedMPH10m() 
@@ -348,10 +357,6 @@ void SendWindGustSpeedMPH10m()
    char winSpeedChar[256]; 
    dtostrf(windgustmph_10m, 3, 2, winSpeedChar);
    client.publish("arduino/weather/windgustspeedmph10m", winSpeedChar);
-   Serial.print("windgustspeedmph10m:");
-   Serial.println(winSpeedChar);
-}
-void callback(char* topic, byte* payload, unsigned int length) 
-{
-
+   //Serial.print("windgustspeedmph10m:");
+   //Serial.println(winSpeedChar);
 }
