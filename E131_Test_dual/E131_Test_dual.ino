@@ -38,9 +38,6 @@ TaskHandle_t TaskA, TaskB;
 #define NUM_STRIPS 8
 #define NUM_LEDS_PER_STRIP 170
 
-//const char ssid[] = "Edward";         // Replace with your SSID
-//const char passphrase[] = "v5jaSrGAyVLdi1w6I";   // Replace with your WPA2 passphrase
-
 const int universe = 1;
 const int universeCount = 8;
 
