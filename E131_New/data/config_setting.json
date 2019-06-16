@@ -1,0 +1,113 @@
+{
+  "title": "Controller Setting",
+  "uri": "/config_setting",
+  "menu": true,
+  "element": [
+    {
+      "name": "header",
+      "type": "ACText",
+      "value": "<h2>Controller Settings</h2>",
+      "style": "text-align:center;color:#2f4f4f;"
+    },
+    {
+      "name": "caption",
+      "type": "ACText",
+      "value": "Set the Controller Settings and Reboot",
+      "style": "font-family:serif;color:#4682b4;"
+    },
+    {
+      "name": "ethipaddress",
+      "type": "ACInput",
+      "value": "",
+      "label": "Ethernet IP Address"
+    },
+    {
+      "name": "ethipsubmask",
+      "type": "ACInput",
+      "value": "",
+      "label": "Ethernet IP Submask"
+    },
+    {
+      "name": "newline",
+      "type": "ACElement",
+      "value": "<hr>"
+    },
+    {
+      "name": "controllermode",
+      "type": "ACRadio",
+      "label": "Controller Mode",
+      "value": [
+        "E1.31",
+        "ZCPP",
+        "SD Card"
+      ],
+      "arrange": "vertical",
+      "checked": 1
+    },
+    {
+      "name": "newline2",
+      "type": "ACElement",
+      "value": "<hr>"
+    },
+	{
+      "name": "testmode",
+      "type": "ACRadio",
+      "label": "Test Mode",
+      "value": [
+        "Off",
+        "Color Case",
+        "Red",
+        "Green",
+        "Blue"
+      ],
+      "arrange": "vertical",
+      "checked": 1
+    },
+    {
+      "name": "newline3",
+      "type": "ACElement",
+      "value": "<hr>"
+    },
+    {
+      "name": "universestart",
+      "type": "ACInput",
+      "value": "1",
+      "label": "Universe Start"
+    },
+    {
+      "name": "universecount",
+      "type": "ACInput",
+      "value": "",
+      "label": "Universe Count"
+    },
+    {
+      "name": "universesize",
+      "type": "ACInput",
+      "value": "",
+      "label": "Universe Count"
+    },
+    {
+      "name": "brightness",
+      "type": "ACInput",
+      "value": "",
+      "label": "Brightness"
+    },
+    {
+      "name": "newline4",
+      "type": "ACElement",
+      "value": "<hr>"
+    },
+    {
+      "name": "save",
+      "type": "ACSubmit",
+      "value": "Save",
+      "uri": "/config_save"
+    },
+    {
+      "name": "discard",
+      "type": "ACSubmit",
+      "value": "Discard",
+      "uri": "/"
+    }
+  ]
+}
