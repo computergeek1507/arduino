@@ -2,9 +2,8 @@
 * E131_Test.ino - Simple sketch to listen for E1.31 data on an ESP32 
 *                  and print some statistics.
 *
-* Project: ESPAsyncE131 - Asynchronous E.131 (sACN) library for Arduino ESP8266 and ESP32
-* Copyright (c) 2019 Shelby Merrick
-* http://www.forkineye.com
+* Project: E131 ESP32 Controller
+* Copyright (c) 2019 Scott Hanson
 *
 *  This program is provided free for you to use in any way that you wish,
 *  subject to the laws and regulations where you are using it.  Due diligence
@@ -139,6 +138,8 @@ void setup() {
     FastLED.addLeds<NEOPIXEL, 14>(leds[5], NUM_LEDS_PER_STRIP);
     FastLED.addLeds<NEOPIXEL, 15>(leds[6], NUM_LEDS_PER_STRIP);
     FastLED.addLeds<NEOPIXEL, 16>(leds[7], NUM_LEDS_PER_STRIP);
+
+    //FastLED.setBrightness(BRIGHTNESS );
     
     //FastLED.addLeds<NEOPIXEL, 16>(leds[8], NUM_LEDS_PER_STRIP);
     //FastLED.addLeds<NEOPIXEL, 17>(leds[9], NUM_LEDS_PER_STRIP);
