@@ -28,6 +28,12 @@
       "label": "Ethernet IP Submask"
     },
     {
+      "name": "ethipgateway",
+      "type": "ACInput",
+      "value": "",
+      "label": "Ethernet IP Gateway"
+    },
+    {
       "name": "newline",
       "type": "ACElement",
       "value": "<hr>"

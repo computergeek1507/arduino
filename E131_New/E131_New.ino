@@ -8,6 +8,13 @@
   https://opensource.org/licenses/MIT
 */
 
+//#define FASTLED_SHOW_CORE 0
+#define FASTLED_ESP32_I2S true
+//#include <ESPAsyncE131.h>
+#include <E131.h>
+#include <FastLED.h>
+#include <ETH.h>
+
 #include <WiFi.h>
 #include <WebServer.h>
 #include <SPIFFS.h>
@@ -23,8 +30,16 @@
 #define AUX_CONFIGCLEAR   "/config_clear"
 #define REBOOT_LINK   "/reboot"
 
-// Adjusting WebServer class with between ESP8266 and ESP32.
+TaskHandle_t TaskA, TaskB;
+
+#define NUM_STRIPS 8
+#define NUM_LEDS_PER_STRIP 170
+
 typedef WebServer WiFiWebServer;
+
+E131                e131;
+
+CRGB leds[NUM_STRIPS][NUM_LEDS_PER_STRIP];
 
 AutoConnect  portal;
 AutoConnectConfig config;
@@ -32,10 +47,50 @@ WiFiClient   wifiClient;
 
 String  ethIPAddress;
 String  ethIPSubmask;
+String  ethIPGateway;
 unsigned int  universeStart = 1;
 unsigned int  universeCount = 8;
 unsigned int  universeSize = 510;
 unsigned int  brightness = 100;
+
+static bool eth_connected = false;
+
+void WiFiEvent(WiFiEvent_t event)
+{
+  switch (event) {
+    case SYSTEM_EVENT_ETH_START:
+      Serial.println("ETH Started");
+      //set eth hostname here
+      ETH.setHostname("esp32-ethernet");
+      break;
+    case SYSTEM_EVENT_ETH_CONNECTED:
+      Serial.println("ETH Connected");
+      break;
+    case SYSTEM_EVENT_ETH_GOT_IP:
+      Serial.print("ETH MAC: ");
+      Serial.print(ETH.macAddress());
+      Serial.print(", IPv4: ");
+      Serial.print(ETH.localIP());
+      if (ETH.fullDuplex()) {
+        Serial.print(", FULL_DUPLEX");
+      }
+      Serial.print(", ");
+      Serial.print(ETH.linkSpeed());
+      Serial.println("Mbps");
+      eth_connected = true;
+      break;
+    case SYSTEM_EVENT_ETH_DISCONNECTED:
+      Serial.println("ETH Disconnected");
+      eth_connected = false;
+      break;
+    case SYSTEM_EVENT_ETH_STOP:
+      Serial.println("ETH Stopped");
+      eth_connected = false;
+      break;
+    default:
+      break;
+  }
+}
 
 void LoadConfigSettings() {
   Serial.println("LoadConfigSettings Called !");
@@ -76,6 +131,10 @@ void LoadConfigSettings() {
             else if(name == "ethipsubmask")
             {
               ethIPSubmask = value;
+            }
+            else if(name == "ethipgateway")
+            {
+              ethIPGateway = value;
             }
             else if(name == "universestart")
             {
@@ -118,6 +177,9 @@ String saveParams(AutoConnectAux& aux, PageArgument& args) {
 
   ethIPSubmask = args.arg("ethipsubmask");
   ethIPSubmask.trim();
+
+  ethIPGateway = args.arg("ethipgateway");
+  ethIPGateway.trim();
   
   String sUniverseStart = args.arg("universestart");
   universeStart = sUniverseStart.toInt();
@@ -135,13 +197,14 @@ String saveParams(AutoConnectAux& aux, PageArgument& args) {
   // To retrieve the elements of /mqtt_setting, it is necessary to get
   // the AutoConnectAux object of /mqtt_setting.
   File param = SPIFFS.open(PARAM_FILE, "w");
-  portal.aux("/config_setting")->saveElement(param, { "ethipaddress", "ethipsubmask", "universestart", "universecount", "universesize", "brightness" });
+  portal.aux("/config_setting")->saveElement(param, { "ethipaddress", "ethipsubmask", "ethipgateway", "universestart", "universecount", "universesize", "brightness" });
   param.close();
 
   // Echo back saved parameters to AutoConnectAux page.
   AutoConnectText&  echo = aux["parameters"].as<AutoConnectText>();
   echo.value = "Ethernet IP Address: " + ethIPAddress + "<br>";
   echo.value += "Ethernet IP Submask: " + ethIPSubmask + "<br>";
+  echo.value += "Ethernet IP Gateway: " + ethIPGateway + "<br>";
   echo.value += "Universe Start: " + String(universeStart) + "<br>";
   echo.value += "Universe Count: " + String(universeCount) + "<br>";
   echo.value += "Universe Size: " + String(universeSize) + "<br>";
@@ -159,6 +222,7 @@ void handleRoot() {
     "<body>"
     "Ethernet IP Address: " + ethIPAddress + "<br>"
     "Ethernet IP Submask: " + ethIPSubmask + "<br>"
+    "Ethernet IP Gateway: " + ethIPGateway + "<br>"
     "Universe Start: " + String(universeStart) + "<br>"
     "Universe Count: " + String(universeCount) + "<br>"
     "Universe Size: " + String(universeSize) + "<br>"
@@ -295,7 +359,6 @@ void setup() {
   loadAux(AUX_CONFIGSETTING);
   loadAux(AUX_CONFIGSAVE);
 
-  //portal.on("/setting", JSONSettings);
   LoadConfigSettings();
 
   AutoConnectAux* setting = portal.aux(AUX_CONFIGSETTING);
@@ -317,7 +380,6 @@ void setup() {
 
     portal.on(AUX_CONFIGSETTING, loadParams);
     portal.on(AUX_CONFIGSAVE, saveParams);
-    //portal.on("/", handleRoot2);
   }
   else
     Serial.println("aux. load error");
@@ -336,8 +398,86 @@ void setup() {
   webServer.on(AUX_CONFIGCLEAR, handleClearChannel);
   webServer.on(AUX_CONFIGCLEAR, handleClearChannel);
   webServer.on(REBOOT_LINK, rebootController);
+
+
+  IPAddress ipaddr;
+  if (ipaddr.fromString(ethIPAddress)) {
+    // it was a valid address, do something with it 
+  }
+
+  IPAddress ipsub;
+  if (ipsub.fromString(ethIPSubmask)) {
+    // it was a valid address, do something with it 
+  }
+
+  IPAddress ipgate;
+  if (ipgate.fromString(ethIPGateway)) {
+    // it was a valid address, do something with it 
+  }
+
+  ETH.config(ipaddr,ipgate,ipsub);
+  WiFi.onEvent(WiFiEvent);
+  ETH.begin();
+  e131.initUnicast();
+
+  FastLED.addLeds<NEOPIXEL, 5>(leds[0], NUM_LEDS_PER_STRIP);
+  FastLED.addLeds<NEOPIXEL, 4>(leds[1], NUM_LEDS_PER_STRIP);
+  FastLED.addLeds<NEOPIXEL, 2>(leds[2], NUM_LEDS_PER_STRIP);
+  FastLED.addLeds<NEOPIXEL, 0>(leds[3], NUM_LEDS_PER_STRIP);
+  
+  FastLED.addLeds<NEOPIXEL, 13>(leds[4], NUM_LEDS_PER_STRIP);
+  FastLED.addLeds<NEOPIXEL, 14>(leds[5], NUM_LEDS_PER_STRIP);
+  FastLED.addLeds<NEOPIXEL, 15>(leds[6], NUM_LEDS_PER_STRIP);
+  FastLED.addLeds<NEOPIXEL, 16>(leds[7], NUM_LEDS_PER_STRIP);
+
+  FastLED.setBrightness(brightness );
+  PowerUpDone();
+
+ xTaskCreatePinnedToCore(
+   Task1,                  /* pvTaskCode */
+   "Workload1",            /* pcName */
+   1000,                   /* usStackDepth */
+   NULL,                   /* pvParameters */
+   1,                      /* uxPriority */
+   &TaskA,                 /* pxCreatedTask */
+   0);  
+}
+
+void PowerUpDone() 
+{
+   LEDS.showColor(CRGB(255, 0, 0)); //turn all pixels on red
+   delay(1000);
+   LEDS.showColor(CRGB(0, 255, 0)); //turn all pixels on green
+   delay(1000);
+   LEDS.showColor(CRGB(0, 0, 255)); //turn all pixels on blue
+   delay(1000);
+   FastLED.clear(); //clear pixels
+   FastLED.show();
+}
+
+
+void Task1( void * parameter )
+{
+ for (;;) {
+   LEDS.show();
+   //LEDS.delay(10);
+   delay(10) ;
+ }
 }
 
 void loop() {
+  if(e131.parsePacket()) {
+  Serial.print("Universe:");
+  Serial.println(e131.universe);
+        if (e131.universe >= universeStart && e131.universe < universeStart + universeCount) {
+          int x = e131.universe - universeStart;
+          
+            //for (int i = 0; i < NUM_LEDS_PER_STRIP; i++) {
+             //   int j = i * 3;
+            //    leds[x][i]=CRGB(e131.data[j], e131.data[j+1], e131.data[j+2]);
+            //}
+            memcpy(leds[x],e131.data, universeSize);
+        }
+    }
   portal.handleClient();
 }
