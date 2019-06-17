@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ESP32Pix</title>
+</head>
+<body>
+  <form id="MyForm">
+    <fieldset>
+      <div>
+        <label for="ether_IP_address">Ethernet IP Address</label>      
+        <input value="192.168.1.206" id="etherIPaddress">
+      </div>
+      <div>
+        <label for="ether_IP_subnet">Ethernet Subnet</label>
+        <input value="255.255.255.0" id="etherIPsubnet">
+      </div>
+      <div>
+        <label for="start_Universe">Start Universe</label>
+        <input value="1" id="startUniverse">
+      </div>
+      <div>
+        <label for="number_Universe">Number Universe</label>
+        <input value="8" id="numberUniverse">
+      </div>
+      <div>
+        <button class="primary" id="savebtn" type="button" onclick="myFunction()">SAVE</button>
+      </div>
+    </fieldset>
+  </form>
+</body>
+<script>
+
+function myFunction()
+{
+  console.log("button was clicked!");
+  var etherIPaddress = document.getElementById("etherIPaddress").value;
+  var etherIPsubnet = document.getElementById("etherIPsubnet").value;
+  var startUniverse = document.getElementById("startUniverse").value;
+  var numberUniverse = document.getElementById("numberUniverse").value;
+  var data = {etherIPaddress:etherIPaddress, etherIPsubnet:etherIPsubnet, startUniverse:startUniverse, numberUniverse:numberUniverse};
+  var xhr = new XMLHttpRequest();
+  var url = "/settings";
+  xhr.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      // Typical action to be performed when the document is ready:
+      if(xhr.responseText != null){
+        console.log(xhr.responseText);
+      }
+    }
+  };
+  xhr.open("POST", url, true);
+  xhr.send(JSON.stringify(data));
+};
+</script>
+</html>
