@@ -1,0 +1,45 @@
+[
+  {
+    "name": "ethipaddress",
+    "type": "ACInput",
+    "value": "192.168.1.206",
+    "label": "Ethernet IP Address"
+  },
+  {
+    "name": "ethipsubmask",
+    "type": "ACInput",
+    "value": "255.255.255.0",
+    "label": "Ethernet IP Submask"
+  },
+  {
+    "name": "ethipgateway",
+    "type": "ACInput",
+    "value": "192.168.1.1",
+    "label": "Ethernet IP Gateway"
+  },
+  {
+    "name": "universestart",
+    "type": "ACInput",
+    "value": "1",
+    "label": "Universe Start"
+  },
+  {
+    "name": "universecount",
+    "type": "ACInput",
+    "value": "8",
+    "label": "Universe Count"
+  },
+  {
+    "name": "universesize",
+    "type": "ACInput",
+    "value": "510",
+    "label": "Universe Size"
+  },
+  {
+    "name": "brightness",
+    "type": "ACInput",
+    "value": "100",
+    "label": "Brightness"
+  }
+  
+]
