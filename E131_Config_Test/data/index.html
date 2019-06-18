@@ -9,11 +9,15 @@
   <div>
   <table align="center" border="1px" rules="none" cellpadding="5px">
       <tr>
-        <td>Universe&nbsp;Range&nbsp;:</td>      
-        <td><span id="uni_first"></span> to <span id="uni_last"></span></td>
+        <td colspan="2"><span id="name_ver"></td>
       </tr>
       <tr>
-        <td>Last Universe :</td><td><span id="universe"></span></td>
+        <td>Ethernet&nbsp;IP&nbsp;:</td>
+        <td><span id="eth_ip"></span></td>
+      </tr>
+      <tr>
+        <td>Universe&nbsp;Range&nbsp;:</td>      
+        <td><span id="uni_first"></span> to <span id="uni_last"></span></td>
       </tr>
       <tr>
         <td align="right">Total Packets :</td><td><span id="num_packets"></span></td>
@@ -36,6 +40,6 @@
 </body>
 <script type="text/javascript" src="script.js"></script>
 <script>
-setValues("/adminvals");
+setValues("/indexvals");
 </script>
 </html>

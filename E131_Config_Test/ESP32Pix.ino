@@ -8,9 +8,10 @@
 #include <FS.h>
 #include <ArduinoJson.h>
 
-uint8_t pin_led = 2;
+#include "ESP32Pix.h"
+#include "page_index.h"
 
-AsyncWebServer      web(80);     /* Web Server */
+AsyncWebServer web(HTTP_PORT);     /* Web Server */
 
 char* mySsid = "ESP32Pix";
 char* password = "password";
@@ -20,9 +21,10 @@ IPAddress gateway(192, 168, 11, 1);
 IPAddress netmask(255, 255, 255, 0);
 
 
+
 void setup()
 {
-  pinMode(pin_led, OUTPUT);
+  pinMode(LED_PIN, OUTPUT);
   Serial.begin(115200);
   SPIFFS.begin();
 
@@ -36,13 +38,19 @@ void setup()
   //server.on("/global_settings", HTTP_GET, handleGlobalSettingsGet);
   //server.on("/all_settings", HTTP_GET, handleAllSettingsGet);
 
- /* Config file handler for testing */
+  web.on("/indexvals", HTTP_GET, get_index_vals);
+  //web.on("/inputvals", HTTP_GET, get_input_vals);
+  //web.on("/pixelvals", HTTP_GET, get_pixel_vals);
+
+  //web.on("/index.html", HTTP_POST, send_index_html);
+  //web.on("/inputs.html", HTTP_POST, send_inputs_html);
+  //web.on("/pixels.html", HTTP_POST, send_pixels_html);
+  //web.on("/sdcard.html", HTTP_POST, send_sdcard_html);
 
   //web.serveStatic("/configfile", SPIFFS, "/config.json");
 
-  //web.on("/reboot", HTTP_GET, rebootController);
- web.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
-   //   web.serveStatic("/", SPIFFS, "/");
+   web.on("/reboot", HTTP_GET, rebootController);
+   web.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
 
     web.onNotFound([](AsyncWebServerRequest *request) {
         request->send(404, "text/plain", "Page not found");
@@ -82,7 +90,7 @@ void wifiConnect()
         {
           delay(500);
           Serial.print(".");
-          digitalWrite(pin_led,!digitalRead(pin_led));
+          digitalWrite(LED_PIN,!digitalRead(LED_PIN));
           if ((unsigned long)(millis() - startTime) >= 5000) break;
         }
       }
@@ -91,19 +99,19 @@ void wifiConnect()
 
   if (WiFi.status() == WL_CONNECTED)
   {
-    digitalWrite(pin_led,HIGH);
+    digitalWrite(LED_PIN,HIGH);
   } else 
   {
     WiFi.mode(WIFI_AP);
     WiFi.softAPConfig(local_ip, gateway, netmask);
     WiFi.softAP(mySsid, password); 
-    digitalWrite(pin_led,LOW);      
+    digitalWrite(LED_PIN,LOW);      
   }
   Serial.println("");
   WiFi.printDiag(Serial);
 }
 
-void rebootController() {
+void rebootController(AsyncWebServerRequest *request) {
   // Returns the redirect response. The page is reloaded and its contents
   // are updated to the state after deletion.
   //web.sendHeader("Location", String("http://") + web.client().localIP().toString() + String("/"));
