@@ -2,7 +2,7 @@
 
 <html>
 <head>
-<title>ESP32Pix</title>
+<title>ESP32Pix Pixels</title>
 </head>
 <body>
   <form action="" method="post">
@@ -72,6 +72,10 @@
 		<td>Channel:</td><td><input value="1" id="port8chan" type="number" min="1" max="512"></td>
 		<td>End Channel:<span id="port8endchan"></td>
       </tr>
+	  </tr>
+        <td>Brightness</td> 
+        <td colspan="7"><input value="100" id="brightness" type="number"  min="1" max="100" onchange= "setBrightness(this.value)"></td>
+      </tr>
       <tr>
         <td>Test&nbsp;Mode:</td><td colspan="7"><select id="testmode" name="test_mode" onchange= "setTestMode(this.value)">
 		  <option value="off">Off</option>
@@ -102,6 +106,10 @@ function loadFunction(){
 };
 
 function setTestMode(val){
+  //readSetting();
+};
+
+function setBrightness(val){
   //readSetting();
 };
 </script>

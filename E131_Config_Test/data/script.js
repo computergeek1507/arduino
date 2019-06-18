@@ -36,7 +36,7 @@ function microAjax(B, A) {
         }
         C.send(this.postBody);
     }
-}
+};
 
 function setValues(url) {
     microAjax(url, function(res) {
@@ -56,4 +56,12 @@ function setValues(url) {
             }
         });
     });
-}
+};
+
+function reboot()
+{
+  var xhr = new XMLHttpRequest();
+  var url = "/reboot";
+  xhr.open("GET", url, true);
+  xhr.send();
+};

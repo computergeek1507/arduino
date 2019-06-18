@@ -2,7 +2,7 @@
 
 <html>
 <head>
-<title>ESP32Pix</title>
+<title>ESP32Pix Inputs</title>
 </head>
 <body>
   <form action="" method="post">
@@ -30,22 +30,21 @@
 		  <option value="sdcard">SD Card</option>
 		</select></td>
       <tr>
-        <td>Start Universe</td> 
+        <td>Start Universe:</td> 
         <td><input value="1" id="startUniverse" type="number" min="1" max="64000"></td>
       </tr>
       <tr>
-        <td>Number of Universes</td> 
+        <td>Number of Universes:</td> 
         <td><input value="8" id="numberUniverse" type="number"  min="1" max="17"></td>
       </tr>
       <tr>
-        <td>Universe Size</td> 
-        <td><input value="510" id="sizeUniverse" type="number"  min="510" max="512"></td>
-      </tr>
-        <td>Brightness</td> 
-        <td><input value="100" id="brightness" type="number"  min="1" max="100"></td>
-      </tr>
+        <td>Universe Size:</td> 
+		<td><select id="sizeUniverse" name="sizeUniverse">
+		  <option value="510">510</option>
+		  <option value="512">512</option>
+		</select></td>
       <tr>
-        <td colspan="2" align="center"><button class="primary" id="savebtn" type="button">Save Settings</button></td>
+        <td colspan="2" align="center"><button class="primary" id="saveUnibtn" type="button">Save Universe Settings</button></td>
       </tr>
       <tr>
         <td colspan="2" align="center"><button class="primary" id="backbtn" type="button" onclick="location.href = 'index.html';">Main Page</button></td>
