@@ -27,8 +27,9 @@ String ethIPAddress = "192.168.1.206";
 String ethIPSubmask = "255.255.255.0";
 String ethIPGateway = "192.168.1.1";
 unsigned int univStart = 1;
-unsigned int univCount = 8;
+unsigned int univCount = 9;
 unsigned int univSize = 510;
+unsigned int serialUni = 9;
 unsigned int testMode = 0;
 unsigned int inputMode = 0;
 
@@ -38,5 +39,7 @@ portConfig ports[NUM_PORTS];
 
 espConfig configData;
 unsigned int packets = 0;
+
+void saveConfig();
 
 #endif 

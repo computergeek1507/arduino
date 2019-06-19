@@ -46,11 +46,11 @@ void setup()
   web.on("/pixelvals", HTTP_GET, get_pixel_vals);
 
   //web.on("/index.html", HTTP_POST, send_index_html);
-  //web.on("/inputs.html", HTTP_POST, send_inputs_html);
-  //web.on("/pixels.html", HTTP_POST, send_pixels_html);
+  web.on("/inputs.html", HTTP_POST, send_input_vals);
+  web.on("/pixels.html", HTTP_POST, send_pixel_vals);
   //web.on("/sdcard.html", HTTP_POST, send_sdcard_html);
 
-  //web.serveStatic("/configfile", SPIFFS, "/config.json");
+  web.serveStatic("/configfile", SPIFFS, CONFIG_FILE_NAME);
 
    web.on("/reboot", HTTP_GET, rebootController);
    web.serveStatic("/", SPIFFS, "/").setDefaultFile("index.html");
@@ -125,4 +125,61 @@ void rebootController(AsyncWebServerRequest *request) {
   //web.client().stop();
   //Serial.println("Restarting Controller");
   ESP.restart();
+}
+
+void configToJSON(String &json) {
+    //doc
+    DynamicJsonDocument doc(CONFIG_MAX_SIZE);
+    //JsonObject json = jsonBuffer.createObject();
+    //ethernet
+    JsonObject ethernet = doc.createNestedObject("ethernet");
+    ethernet["ipaddress"] = configData.ethIPAddress;
+	ethernet["ipsubmask"] = configData.ethIPSubmask;
+	ethernet["ipgateway"] = configData.ethIPGateway;
+	//wifi
+    JsonObject wifi = doc.createNestedObject("wifi");
+    wifi["apname"] = configData.apName;
+	wifi["hostname"] = configData.hostName;
+
+	//input
+    JsonObject input = doc.createNestedObject("input");
+    input["universestart"] = configData.univStart;
+	input["universecount"] = configData.univCount;
+	input["universesize"] = configData.univSize;
+	input["serialuniverse"] = configData.serialUni;
+	input["inputMode"] = configData.inputMode;
+	
+	for(int i =0;i < NUM_PORTS;i++)
+	{
+		JsonObject port = doc.createNestedObject("port" + (String)(i+1));
+		port["pixelcount"] = configData.ports[i].pixCount;
+		port["startuniverse"] = configData.ports[i].startUni;
+		port["startchannel"] = configData.ports[i].startChan;
+		port["enduniverse"] = configData.ports[i].endUni;
+		port["endchannel"] = configData.ports[i].endChan;
+		port["brightness"] = configData.ports[i].brightness;
+	}
+
+    serializeJson(doc,json);
+}
+
+void recalcConfig() {
+	for(int i =0;i < NUM_PORTS;i++)
+	{
+		unsigned int numchan = configData.ports[i].pixCount * 3;
+		unsigned int numunv = numchan / configData.univSize;
+		unsigned int endChanel = numchan % configData.univSize;
+		configData.ports[i].endUni = configData.ports[i].startUni + numunv;
+		configData.ports[i].endChan = endChanel;
+	}
+}
+
+void saveConfig() {
+	recalcConfig();
+	String json;
+	configToJSON(json);
+	File file = SPIFFS.open(CONFIG_FILE_NAME, "w");
+    if (file) {
+        file.println(json);
+    }
 }

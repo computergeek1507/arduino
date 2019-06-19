@@ -17,6 +17,7 @@ for(int i = 0; i<configData.univCount; i++)
 	values += "port6uni|opt|" + (String)unv + "|" + (String)i + "\n";
 	values += "port7uni|opt|" + (String)unv + "|" + (String)i + "\n";
 	values += "port8uni|opt|" + (String)unv + "|" + (String)i + "\n";
+	values += "serialuni|opt|" + (String)unv + "|" + (String)i + "\n";
 }
 for(int j = 0; j<NUM_PORTS; j++)
 {
@@ -34,8 +35,33 @@ for(int j = 0; j<NUM_PORTS; j++)
 	values += name +"bright|input|" + (String)configData.ports[j].brightness + "\n";
 
 }
+    values += "serialuni|input|" + (String)(configData.serialUni - configData.univStart) + "\n";
     values += "testmode|input|" + (String)configData.testMode + "\n";
     request->send(200, "text/plain", values);
+}
+
+void send_pixel_vals(AsyncWebServerRequest *request) {
+    if (request->params()) {
+        for (uint8_t i = 0; i < request->params(); i++) {
+            AsyncWebParameter *p = request->getParam(i);
+			for(int j = 0; j<NUM_PORTS; j++)
+			{
+				const String name =  "port"+(String)(j+1);
+				if (p->name() == name + "pix") configData.ports[j].pixCount = p->value().toInt();
+				if (p->name() == name + "uni") configData.ports[j].startUni = p->value().toInt();
+				if (p->name() == name + "chan") configData.ports[j].startChan = p->value().toInt();
+				if (p->name() == name + "bright") configData.ports[j].brightness = p->value().toInt();
+			}
+
+        }
+        saveConfig();
+
+        AsyncWebServerResponse *response = request->beginResponse(303);
+        response->addHeader("Location", request->url());
+        request->send(response);
+    } else {
+        request->send(400);
+    }
 }
 
 #endif
