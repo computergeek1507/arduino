@@ -12,24 +12,25 @@ const char SOFT_VER[] = "0.1";
 const char CONFIG_FILE_NAME[] = "/config.json";
 
 typedef struct {
-unsigned int  pixCount;
-String ethIPAddress;
-String ethIPSubmask;
-String ethIPGateway;
-unsigned int startUni;
-unsigned int startChan;
-unsigned int endUni;
-unsigned int endChan;
+unsigned int  pixCount = 50;
+unsigned int startUni = 1;
+unsigned int startChan = 1;
+unsigned int endUni = 1;
+unsigned int endChan = 150;
+unsigned int brightness = 100;
 } portConfig;
 
 typedef struct {
-String ethIPAddress;
-String ethIPSubmask;
-String ethIPGateway;
-unsigned int univStart;
-unsigned int univCount;
+String apName = "ESP32PIX";
+String hostName = "ESP32PIX";
+String ethIPAddress = "192.168.1.206";
+String ethIPSubmask = "255.255.255.0";
+String ethIPGateway = "192.168.1.1";
+unsigned int univStart = 1;
+unsigned int univCount = 8;
 unsigned int univSize = 510;
-unsigned int brightness = 100;
+unsigned int testMode = 0;
+unsigned int inputMode = 0;
 
 portConfig ports[NUM_PORTS];
 

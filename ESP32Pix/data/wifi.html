@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+<head>
+<title>ESP32Pix Wifi</title>
+</head>
+<body>
+  <form action="" method="post">
+  <div>
+  <table align="center" border="1px" rules="none" cellpadding="5px">
+      <tr>
+	    <td>Soft AP Name:</td>      
+        <td><input value="ESP32Pix" id="softap" type="text"></td>
+     </tr>
+     <tr>
+	    <td>Host Name:</td>      
+        <td><input value="ESP32Pix" id="hostname" type="text"></td>
+     </tr>
+      <tr>
+        <td colspan="2" align="center"><button class="primary" id="Savebtn" type="button">Save</button></td>
+      </tr>
+      <tr>
+        <td colspan="2" align="center"><button class="primary" id="refreshbtn" type="button">Refresh</button></td>
+      </tr>
+	  <tr>
+        <td colspan="2" align="center"><button class="primary" id="rebootbtn" type="button" onclick="reboot()">Reboot</button></td>
+      </tr>
+      <tr>
+        <td colspan="2" align="center"><button class="primary" id="backbtn" type="button" onclick="location.href = 'index.html';">Main Page</button></td>
+      </tr>
+      </table>
+      </div>
+  </form>
+</body>
+<script type="text/javascript" src="script.js"></script>
+<script>
+
+function loadFunction(){
+  //readSetting();
+};
+</script>
+</html>

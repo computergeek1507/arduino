@@ -7,13 +7,16 @@
 #include "SPIFFS.h"
 #include <FS.h>
 #include <ArduinoJson.h>
+#include <Update.h>
 
 #include "ESP32Pix.h"
 #include "page_index.h"
+#include "page_input.h"
+#include "page_pixel.h"
 
 AsyncWebServer web(HTTP_PORT);     /* Web Server */
 
-char* mySsid = "ESP32Pix";
+//char* mySsid = "ESP32Pix";
 char* password = "password";
 
 IPAddress local_ip(192, 168, 11, 4);
@@ -39,8 +42,8 @@ void setup()
   //server.on("/all_settings", HTTP_GET, handleAllSettingsGet);
 
   web.on("/indexvals", HTTP_GET, get_index_vals);
-  //web.on("/inputvals", HTTP_GET, get_input_vals);
-  //web.on("/pixelvals", HTTP_GET, get_pixel_vals);
+  web.on("/inputvals", HTTP_GET, get_input_vals);
+  web.on("/pixelvals", HTTP_GET, get_pixel_vals);
 
   //web.on("/index.html", HTTP_POST, send_index_html);
   //web.on("/inputs.html", HTTP_POST, send_inputs_html);
@@ -55,6 +58,7 @@ void setup()
     web.onNotFound([](AsyncWebServerRequest *request) {
         request->send(404, "text/plain", "Page not found");
     });
+	
   
   web.begin();
 }
@@ -103,9 +107,10 @@ void wifiConnect()
   } else 
   {
     WiFi.mode(WIFI_AP);
-    WiFi.softAPConfig(local_ip, gateway, netmask);
-    WiFi.softAP(mySsid, password); 
-    digitalWrite(LED_PIN,LOW);      
+    //WiFi.softAPConfig(local_ip, gateway, netmask);
+    WiFi.softAP(configData.apName.c_str(), password);
+	Serial.println(WiFi.localIP()); 
+    digitalWrite(LED_PIN,LOW);
   }
   Serial.println("");
   WiFi.printDiag(Serial);

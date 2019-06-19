@@ -25,9 +25,9 @@
       </tr>
       <tr>
         <td>Input Mode:</td><td><select id="input_mode" name="input_mode">
-		  <option value="e131">E1.31</option>
-		  <option value="zcpp">ZCPP</option>
-		  <option value="sdcard">SD Card</option>
+		  <option value="0">E1.31</option>
+		  <option value="1">ZCPP</option>
+		  <option value="2">SD Card</option>
 		</select></td>
       <tr>
         <td>Start Universe:</td> 
@@ -50,7 +50,7 @@
         <td colspan="2" align="center"><button class="primary" id="backbtn" type="button" onclick="location.href = 'index.html';">Main Page</button></td>
       </tr>
 	  <tr>
-        <td colspan="2" align="center"><button class="primary" id="rebootbtn" type="button" >Reboot</button></td>
+        <td colspan="2" align="center"><button class="primary" id="rebootbtn" type="button" onclick="reboot()">Reboot</button></td>
       </tr>
       </table>
       </div>
@@ -58,7 +58,7 @@
 </body>
 <script type="text/javascript" src="script.js"></script>
 <script>
-
+setValues("/inputvals");
 function loadFunction(){
   //readSetting();
 };
