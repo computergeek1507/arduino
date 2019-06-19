@@ -10,24 +10,27 @@
   <table align="center" border="1px" rules="none" cellpadding="5px">
       <tr>
 	    <td>Soft AP Name:</td>      
-        <td><input value="ESP32Pix" id="softap" type="text"></td>
+        <td><input value="" id="softapname" type="text"></td>
+     </tr>
+	 <tr>
+	    <td>Soft&nbsp;AP&nbsp;Password:</td>      
+        <td><input value="" id="softappass" type="text"></td>
      </tr>
      <tr>
 	    <td>Host Name:</td>      
-        <td><input value="ESP32Pix" id="hostname" type="text"></td>
+        <td><input value="" id="hostname" type="text"></td>
      </tr>
-      <tr>
-        <td colspan="2" align="center"><button class="primary" id="Savebtn" type="button">Save</button></td>
-      </tr>
+     <tr>
+		<td colspan="2" align="center"><input type="submit" class="primary" value="Save Settings"></td>
+	  </tr>
       <tr>
         <td colspan="2" align="center"><button class="primary" id="refreshbtn" type="button">Refresh</button></td>
       </tr>
 	  <tr>
-        <td colspan="2" align="center"><button class="primary" id="rebootbtn" type="button" onclick="reboot()">Reboot</button></td>
-      </tr>
-      <tr>
         <td colspan="2" align="center"><button class="primary" id="backbtn" type="button" onclick="location.href = 'index.html';">Main Page</button></td>
       </tr>
+	  <tr>
+        <td colspan="2" align="center"><button class="primary" id="rebootbtn" type="button" onclick="reboot()">Reboot</button></td>
       </table>
       </div>
   </form>
@@ -35,8 +38,6 @@
 <script type="text/javascript" src="script.js"></script>
 <script>
 
-function loadFunction(){
-  //readSetting();
-};
+setValues("/wifivals");
 </script>
 </html>

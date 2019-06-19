@@ -10,32 +10,33 @@
   <table align="center" border="1px" rules="none" cellpadding="5px">
       <tr>
         <td>Ethernet&nbsp;IP&nbsp;Address:</td>      
-        <td><input value="192.168.1.206" id="etherIPaddress" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
+        <td><input value="" id="etherIPaddress" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
       </tr>
       <tr>
         <td>Ethernet Subnet Mask:</td> 
-        <td><input value="255.255.255.0" id="etherIPsubmask" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
+        <td><input value="" id="etherIPsubmask" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
       </tr>
       <tr>
         <td>Ethernet Gateway:</td>
-        <td><input value="192.168.1.1" id="etherIPgateway" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
+        <td><input value="1" id="etherIPgateway" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
       </tr>
-      <tr>
-        <td colspan="2" align="center"><button class="primary" id="saveEthbtn" type="button">Save Ethernet Settings</button></td>
-      </tr>
+       <tr>
+		<td colspan="2" align="center"><input type="submit" class="primary" value="Save Ethernet Settings"></td>
+	  </tr>
       <tr>
         <td>Input Mode:</td><td><select id="input_mode" name="input_mode">
 		  <option value="0">E1.31</option>
 		  <option value="1">ZCPP</option>
 		  <option value="2">SD Card</option>
 		</select></td>
+	  </tr>
       <tr>
         <td>Start Universe:</td> 
-        <td><input value="1" id="startUniverse" type="number" min="1" max="64000"></td>
+        <td><input value="" id="startUniverse" type="number" min="1" max="64000"></td>
       </tr>
       <tr>
         <td>Number of Universes:</td> 
-        <td><input value="8" id="numberUniverse" type="number"  min="1" max="17"></td>
+        <td><input value="" id="numberUniverse" type="number"  min="1" max="17"></td>
       </tr>
       <tr>
         <td>Universe Size:</td> 
@@ -43,9 +44,10 @@
 		  <option value="510">510</option>
 		  <option value="512">512</option>
 		</select></td>
-      <tr>
-        <td colspan="2" align="center"><button class="primary" id="saveUnibtn" type="button">Save Universe Settings</button></td>
-      </tr>
+		</tr>
+       <tr>
+		<td colspan="2" align="center"><input type="submit" class="primary" value="Save Universe Settings"></td>
+	  </tr>
       <tr>
         <td colspan="2" align="center"><button class="primary" id="backbtn" type="button" onclick="location.href = 'index.html';">Main Page</button></td>
       </tr>

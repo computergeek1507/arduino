@@ -22,6 +22,7 @@ unsigned int brightness = 100;
 
 typedef struct {
 String apName = "ESP32PIX";
+String apPass = "12345678";
 String hostName = "ESP32PIX";
 String ethIPAddress = "192.168.1.206";
 String ethIPSubmask = "255.255.255.0";

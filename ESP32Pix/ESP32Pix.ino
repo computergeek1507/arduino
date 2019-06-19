@@ -1,5 +1,3 @@
-
-
 #include <WiFi.h>
 //#include <WebServer.h>
 #include <AsyncTCP.h>
@@ -13,23 +11,17 @@
 #include "page_index.h"
 #include "page_input.h"
 #include "page_pixel.h"
+#include "page_wifi.h"
 
 AsyncWebServer web(HTTP_PORT);     /* Web Server */
-
-//char* mySsid = "ESP32Pix";
-char* password = "password";
-
-IPAddress local_ip(192, 168, 11, 4);
-IPAddress gateway(192, 168, 11, 1);
-IPAddress netmask(255, 255, 255, 0);
-
-
 
 void setup()
 {
   pinMode(LED_PIN, OUTPUT);
   Serial.begin(115200);
   SPIFFS.begin();
+  
+  readConfig();
 
   wifiConnect();
 
@@ -44,10 +36,12 @@ void setup()
   web.on("/indexvals", HTTP_GET, get_index_vals);
   web.on("/inputvals", HTTP_GET, get_input_vals);
   web.on("/pixelvals", HTTP_GET, get_pixel_vals);
+  web.on("/wifivals", HTTP_GET, get_wifi_vals);
 
   //web.on("/index.html", HTTP_POST, send_index_html);
   web.on("/inputs.html", HTTP_POST, send_input_vals);
   web.on("/pixels.html", HTTP_POST, send_pixel_vals);
+  web.on("/wifi.html", HTTP_POST, send_wifi_vals);
   //web.on("/sdcard.html", HTTP_POST, send_sdcard_html);
 
   web.serveStatic("/configfile", SPIFFS, CONFIG_FILE_NAME);
@@ -108,7 +102,7 @@ void wifiConnect()
   {
     WiFi.mode(WIFI_AP);
     //WiFi.softAPConfig(local_ip, gateway, netmask);
-    WiFi.softAP(configData.apName.c_str(), password);
+    WiFi.softAP(configData.apName.c_str(), configData.apPass.c_str());
 	Serial.println(WiFi.localIP()); 
     digitalWrite(LED_PIN,LOW);
   }
@@ -130,7 +124,6 @@ void rebootController(AsyncWebServerRequest *request) {
 void configToJSON(String &json) {
     //doc
     DynamicJsonDocument doc(CONFIG_MAX_SIZE);
-    //JsonObject json = jsonBuffer.createObject();
     //ethernet
     JsonObject ethernet = doc.createNestedObject("ethernet");
     ethernet["ipaddress"] = configData.ethIPAddress;
@@ -139,6 +132,7 @@ void configToJSON(String &json) {
 	//wifi
     JsonObject wifi = doc.createNestedObject("wifi");
     wifi["apname"] = configData.apName;
+	wifi["appassword"] = configData.apPass;
 	wifi["hostname"] = configData.hostName;
 
 	//input
@@ -182,4 +176,68 @@ void saveConfig() {
     if (file) {
         file.println(json);
     }
+}
+
+void jsonToConfig(DynamicJsonDocument &doc) {
+    //ethernet
+    JsonObject ethernet = doc["ethernet"];
+    configData.ethIPAddress = ethernet["ipaddress"].as<String>();
+	configData.ethIPSubmask = ethernet["ipsubmask"].as<String>();
+	configData.ethIPGateway = ethernet["ipgateway"].as<String>();
+	//wifi
+    JsonObject wifi = doc["wifi"];
+    configData.apName = wifi["apname"].as<String>();;
+	configData.apPass = wifi["appassword"].as<String>();;
+	configData.hostName = wifi["hostname"].as<String>();
+
+	//input
+    JsonObject input = doc["input"];
+    configData.univStart = input["universestart"];
+	configData.univCount = input["universecount"];
+	configData.univSize = input["universesize"];
+	configData.serialUni = input["serialuniverse"];
+	configData.inputMode = input["inputMode"];
+	
+	for(int i =0;i < NUM_PORTS;i++)
+	{
+		JsonObject port = doc["port" + (String)(i+1)];
+		configData.ports[i].pixCount=port["pixelcount"];
+		configData.ports[i].startUni=port["startuniverse"];
+		configData.ports[i].startChan=port["startchannel"];
+		configData.ports[i].endUni=port["enduniverse"];
+		configData.ports[i].endChan=port["endchannel"];
+		configData.ports[i].brightness=port["brightness"];
+	}
+}
+void readConfig() {
+Serial.println("LoadConfigSettings Called !");
+  File configFile = SPIFFS.open(CONFIG_FILE_NAME, "r");
+  if (!configFile)
+  {
+    Serial.println("No File Exist");
+  } 
+  else 
+  {
+      size_t size = configFile.size();
+      if ( size == 0 )
+      {
+        Serial.println("File empty !");
+      } 
+      else 
+      {
+		  	DynamicJsonDocument doc(CONFIG_MAX_SIZE);
+			DeserializationError error = deserializeJson(doc,configFile);
+			configFile.close();
+       
+        if (error) 
+        {
+          Serial.println("Invalid file");
+        } 
+        else 
+        {
+			Serial.println("Reading Json..");
+			jsonToConfig(doc);
+		}
+	  }
+}
 }
