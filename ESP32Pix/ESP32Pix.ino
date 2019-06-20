@@ -43,6 +43,8 @@ void setup()
   web.on("/pixels.html", HTTP_POST, send_pixel_vals);
   web.on("/wifi.html", HTTP_POST, send_wifi_vals);
   //web.on("/sdcard.html", HTTP_POST, send_sdcard_html);
+  
+  web.on("/settest", HTTP_POST, setTestMode);
 
   web.serveStatic("/configfile", SPIFFS, CONFIG_FILE_NAME);
 
@@ -69,9 +71,9 @@ void wifiConnect()
   WiFi.disconnect();          
   delay(1000);
   //check for stored credentials
-  if(SPIFFS.exists("/wifi.json")){
+  if(SPIFFS.exists(WIFI_FILE_NAME)){
     const char * _ssid = "", *_pass = "";
-    File configFile = SPIFFS.open("/wifi.json", "r");
+    File configFile = SPIFFS.open(WIFI_FILE_NAME, "r");
     if(configFile){
        DynamicJsonDocument doc(1024);
       DeserializationError error = deserializeJson(doc, configFile);
@@ -121,6 +123,23 @@ void rebootController(AsyncWebServerRequest *request) {
   ESP.restart();
 }
 
+void setTestMode(AsyncWebServerRequest *request) {
+	Serial.println("setTestMode called");
+if (request->params()) {
+        for (uint8_t i = 0; i < request->params(); i++) {
+            AsyncWebParameter *p = request->getParam(i);
+			Serial.println(p->name());
+			Serial.println(p->value());
+            if (p->name() == "mode") configData.testMode = p->value().toInt();
+        }
+        saveConfig();
+
+        request->send(200);
+    } else {
+        request->send(400);
+    }
+}
+
 void configToJSON(String &json) {
     //doc
     DynamicJsonDocument doc(CONFIG_MAX_SIZE);
@@ -142,6 +161,7 @@ void configToJSON(String &json) {
 	input["universesize"] = configData.univSize;
 	input["serialuniverse"] = configData.serialUni;
 	input["inputMode"] = configData.inputMode;
+	input["testMode"] = configData.testMode;
 	
 	for(int i =0;i < NUM_PORTS;i++)
 	{
@@ -149,8 +169,8 @@ void configToJSON(String &json) {
 		port["pixelcount"] = configData.ports[i].pixCount;
 		port["startuniverse"] = configData.ports[i].startUni;
 		port["startchannel"] = configData.ports[i].startChan;
-		port["enduniverse"] = configData.ports[i].endUni;
-		port["endchannel"] = configData.ports[i].endChan;
+		//port["enduniverse"] = configData.ports[i].endUni;
+		//port["endchannel"] = configData.ports[i].endChan;
 		port["brightness"] = configData.ports[i].brightness;
 	}
 
@@ -197,6 +217,7 @@ void jsonToConfig(DynamicJsonDocument &doc) {
 	configData.univSize = input["universesize"];
 	configData.serialUni = input["serialuniverse"];
 	configData.inputMode = input["inputMode"];
+	configData.testMode = input["testMode"];
 	
 	for(int i =0;i < NUM_PORTS;i++)
 	{
@@ -204,10 +225,12 @@ void jsonToConfig(DynamicJsonDocument &doc) {
 		configData.ports[i].pixCount=port["pixelcount"];
 		configData.ports[i].startUni=port["startuniverse"];
 		configData.ports[i].startChan=port["startchannel"];
-		configData.ports[i].endUni=port["enduniverse"];
-		configData.ports[i].endChan=port["endchannel"];
+		//configData.ports[i].endUni=port["enduniverse"];
+		//configData.ports[i].endChan=port["endchannel"];
 		configData.ports[i].brightness=port["brightness"];
 	}
+	
+	recalcConfig();
 }
 void readConfig() {
 Serial.println("LoadConfigSettings Called !");
@@ -239,5 +262,5 @@ Serial.println("LoadConfigSettings Called !");
 			jsonToConfig(doc);
 		}
 	  }
-}
+    }
 }

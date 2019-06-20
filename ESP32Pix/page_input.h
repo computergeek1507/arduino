@@ -7,6 +7,8 @@ void send_input_vals(AsyncWebServerRequest *request) {
     if (request->params()) {
         for (uint8_t i = 0; i < request->params(); i++) {
             AsyncWebParameter *p = request->getParam(i);
+			Serial.println(p->name());
+			Serial.println(p->value());
             if (p->name() == "etherIPaddress") configData.ethIPAddress = p->value();
             if (p->name() == "etherIPsubmask") configData.ethIPSubmask = p->value();
 			if (p->name() == "etherIPgateway") configData.ethIPGateway = p->value(); 

@@ -9,16 +9,16 @@
   <div>
   <table align="center" border="1px" rules="none" cellpadding="5px">
       <tr>
-        <td>Ethernet&nbsp;IP&nbsp;Address:</td>      
-        <td><input value="" id="etherIPaddress" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
+        <td>Ethernet&nbsp;IP&nbsp;Address:</td>
+        <td><input value="" id="etherIPaddress" name="etherIPaddress" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
       </tr>
       <tr>
         <td>Ethernet Subnet Mask:</td> 
-        <td><input value="" id="etherIPsubmask" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
+        <td><input value="" id="etherIPsubmask" name="etherIPsubmask" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
       </tr>
       <tr>
         <td>Ethernet Gateway:</td>
-        <td><input value="1" id="etherIPgateway" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
+        <td><input value="1" id="etherIPgateway" name="etherIPgateway" type="text" minlength="7" maxlength="15" pattern="^((\d{1,2}|1\d\d|2[0-4]\d|25[0-5])\.){3}(\d{1,2}|1\d\d|2[0-4]\d|25[0-5])$"></td>
       </tr>
        <tr>
 		<td colspan="2" align="center"><input type="submit" class="primary" value="Save Ethernet Settings"></td>
@@ -32,11 +32,11 @@
 	  </tr>
       <tr>
         <td>Start Universe:</td> 
-        <td><input value="" id="startUniverse" type="number" min="1" max="64000"></td>
+        <td><input value="" id="startUniverse" name="startUniverse" type="number" min="1" max="64000"></td>
       </tr>
       <tr>
         <td>Number of Universes:</td> 
-        <td><input value="" id="numberUniverse" type="number"  min="1" max="17"></td>
+        <td><input value="" id="numberUniverse" name="numberUniverse" type="number"  min="1" max="17"></td>
       </tr>
       <tr>
         <td>Universe Size:</td> 

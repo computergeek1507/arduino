@@ -10,6 +10,7 @@
 const char SOFT_NAME[] = "ESP32PIX";
 const char SOFT_VER[] = "0.1";
 const char CONFIG_FILE_NAME[] = "/config.json";
+const char WIFI_FILE_NAME[] = "/wifi.json";
 
 typedef struct {
 unsigned int  pixCount = 50;
