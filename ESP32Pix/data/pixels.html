@@ -115,7 +115,7 @@ var xhttp = new XMLHttpRequest();
 var url = '/settest';
 var params = 'mode=' + val;
 xhttp.open("POST", url, true);
-http.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
+xhttp.setRequestHeader('Content-type', 'application/x-www-form-urlencoded');
 
 xhttp.onreadystatechange = function() {
   if (this.readyState == 4 && this.status == 200) {

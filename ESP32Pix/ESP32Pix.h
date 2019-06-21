@@ -3,9 +3,14 @@
 
 #define CONFIG_MAX_SIZE 4096
 #define HTTP_PORT 80
+#define DATA_TIMEOUT    1000
 
 #define NUM_PORTS 8
 #define LED_PIN 4
+
+#define REFRESH 10
+
+#define HARDWARE_V1 true
 
 const char SOFT_NAME[] = "ESP32PIX";
 const char SOFT_VER[] = "0.1";
@@ -18,6 +23,7 @@ unsigned int startUni = 1;
 unsigned int startChan = 1;
 unsigned int endUni = 1;
 unsigned int endChan = 150;
+unsigned int chanCount = 150;
 unsigned int brightness = 100;
 } portConfig;
 
