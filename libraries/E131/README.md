@@ -4,7 +4,8 @@ This library is to simplify the validation and handling of E1.31 sACN (DMX over 
 
 ### Supported Hardware
 - ESP8266
-- Arduino + Ethernet Shield
+- ESP32
+- STM32 
 
 ### API / Usage
 #### Notes
