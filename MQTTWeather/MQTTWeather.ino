@@ -21,6 +21,11 @@ const byte WSPEED = 3;
 // analog I/O pins
 const byte WDIR = A0;
 
+// analog I/O pins
+const byte RG11_Pin = 2;
+
+#define Bucket_Size 0.01 // bucket size to trigger tip count
+
 //Global Variables
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 long lastSecond; //The millis counter to see when a second rolls by
@@ -29,6 +34,13 @@ byte seconds_2m; //Keeps track of the "wind speed/dir avg" over last 2 minutes a
 byte minutes; //Keeps track of where we are in various arrays of data
 byte minutes_10m; //Keeps track of where we are in wind gust/dir over last 10 minutes array of data
 
+
+volatile unsigned long tipCount; // rain bucket tip counter used in interrupt routine
+volatile unsigned long globalTipCount; 
+
+volatile unsigned long lastTipCount;
+
+volatile unsigned long contactTime; // timer to manage any rain contact bounce in interrupt routine
 
 long lastWindCheck = 0;
 volatile long lastWindIRQ = 0;
@@ -54,17 +66,29 @@ int winddir_avg2m = 0; // [0-360 2 minute average wind direction]
 float windgustmph_10m = 0; // [mph past 10 minutes wind gust mph ]
 int windgustdir_10m = 0; // [0-360 past 10 minutes wind gust direction]
 
+float rainpermin = 0; 
+
 EthernetClient ethClient;
 PubSubClient client(server, 1883, ethClient);
 
 void wspeedIRQ()
 // Activated by the magnet in the anemometer (2 ticks per rotation), attached to input D3
 {
-    if (millis() - lastWindIRQ > 10) // Ignore switch-bounce glitches less than 10ms (142MPH max reading) after the reed switch closes
+    if (millis() - lastWindIRQ > 15) // Ignore switch-bounce glitches less than 10ms (142MPH max reading) after the reed switch closes
     {
         lastWindIRQ = millis(); //Grab the current time
         windClicks++; //There is 1.492MPH for each click per second.
     }
+}
+
+// Interrupt handler routine that is triggered when the rg-11 detects rain
+void isr_rg() {
+
+  if((millis() - contactTime) > 15 ) { // debounce of sensor signal
+    tipCount++;
+    globalTipCount++;
+    contactTime = millis();
+  }
 }
 
 void setup() 
@@ -79,12 +103,16 @@ void setup()
  // delay(200);
  // digitalWrite(6,HIGH);  
  //delay(500);       // wait W5200 work
- 
+ tipCount = 0;
+ lastTipCount=0;
 
    pinMode(StatLED, OUTPUT);  // LED 
   digitalWrite(StatLED, LOW);
 
   pinMode(WSPEED, INPUT_PULLUP); // input from wind meters windspeed sensor
+  
+    pinMode(RG11_Pin, INPUT_PULLUP);
+  
       seconds = 0;
     lastSecond = millis();  
   char willtopic[128] = MQTT_WILLTOPIC;
@@ -96,7 +124,11 @@ void setup()
     client.publish(willtopic, "Online!");
     digitalWrite(StatLED, HIGH);
   }  
-    attachInterrupt(1, wspeedIRQ, FALLING);
+
+    attachInterrupt(digitalPinToInterrupt(RG11_Pin), isr_rg, FALLING);
+
+//attachInterrupt(digitalPinToInterrupt(WindSensor_Pin), isr_rotation, FALLING);
+    attachInterrupt(digitalPinToInterrupt(WSPEED), wspeedIRQ, FALLING);
 
     // turn on interrupts
     interrupts();
@@ -170,6 +202,10 @@ void calcWeather()
         temp += windspdavg[i];
     temp /= 120.0;
     windspdmph_avg2m = temp;
+	
+	lastTipCount = tipCount;
+	rainpermin = tipCount * Bucket_Size;
+	tipCount = 0;
 
     //Calc winddir_avg2m, Wind Direction
     //You can't just take the average. Google "mean of circular quantities" for more info
@@ -209,7 +245,7 @@ void calcWeather()
             windgustmph_10m = windgust_10m[i];
             windgustdir_10m = windgustdirection_10m[i];
         }
-    }  
+    }
 }
 
 //Returns the instataneous wind speed
@@ -278,13 +314,17 @@ void printWeather()
     SendWindGustDirection10m();
     SendWindGustSpeedMPH10m();
     SendWindADC();
+    SendRainPerMin();
+    SendRainCount();
+    SendRaining();
+    SendGlobalRainCount();
 }
 
 void SendWindADC() 
 {
     char windADCChar[16]; 
     itoa(windADC, windADCChar, 10);
-    client.publish("arduino/weather/windadc", windADCChar);     
+    client.publish("arduino/weather/windadc", windADCChar);
     //Serial.print("windadc:");
     //Serial.println(windADCChar);
 }
@@ -293,7 +333,7 @@ void SendWindDirection()
 {
     char windDirChar[16]; 
     itoa(winddir, windDirChar, 10);
-    client.publish("arduino/weather/winddir", windDirChar);     
+    client.publish("arduino/weather/winddir", windDirChar);
     //Serial.print("winddir:");
     //Serial.println(windDirChar);
 }
@@ -311,7 +351,7 @@ void SendWindGustDirection()
 {
     char winDirChar[16]; 
     itoa(windgustdir, winDirChar, 10);
-    client.publish("arduino/weather/windgustdir", winDirChar);     
+    client.publish("arduino/weather/windgustdir", winDirChar);
     //Serial.print("windgustdir:");
     //Serial.println(winDirChar);
 }
@@ -338,7 +378,7 @@ void SendWindDirectionavg2m()
 {
     char winDirChar[16]; 
     itoa(winddir_avg2m, winDirChar, 10);
-    client.publish("arduino/weather/winddiravg2m", winDirChar);     
+    client.publish("arduino/weather/winddiravg2m", winDirChar);
     //Serial.print("winddir_avg2m:");
     //Serial.println(winDirChar);
 }
@@ -347,7 +387,7 @@ void SendWindGustDirection10m()
 {
     char winDirChar[16]; 
     itoa(windgustdir_10m, winDirChar, 10);
-    client.publish("arduino/weather/windgustdir10m", winDirChar);     
+    client.publish("arduino/weather/windgustdir10m", winDirChar);
     //Serial.print("windgustdir10m:");
     //Serial.println(winDirChar);
 }
@@ -359,4 +399,47 @@ void SendWindGustSpeedMPH10m()
    client.publish("arduino/weather/windgustspeedmph10m", winSpeedChar);
    //Serial.print("windgustspeedmph10m:");
    //Serial.println(winSpeedChar);
+}
+
+void SendRainPerMin() 
+{
+   char rainChar[256]; 
+   dtostrf(rainpermin, 3, 2, rainChar);
+   client.publish("arduino/weather/rainpermin", rainChar);
+   //Serial.print("windspdmph_avg2m:");
+   //Serial.println(winSpeedChar);
+}
+
+void SendRainCount() 
+{
+    char rainChar[16]; 
+    itoa(lastTipCount, rainChar, 10);
+    client.publish("arduino/weather/raincount", rainChar);
+    //Serial.print("windgustdir:");
+    //Serial.println(winDirChar);
+}
+
+void SendGlobalRainCount() 
+{
+    char rainChar[16]; 
+    itoa(globalTipCount, rainChar, 10);
+    client.publish("arduino/weather/globalraincount", rainChar);
+    //Serial.print("windgustdir:");
+    //Serial.println(winDirChar);
+}
+
+void SendRaining() 
+{
+   if(lastTipCount>0)
+   {
+
+      client.publish("arduino/weather/raining", "ON");
+   }
+  else
+  {
+    client.publish("arduino/weather/raining", "OFF");
+  }
+ 
+    //Serial.print("windgustdir:");
+    //Serial.println(winDirChar);
 }
