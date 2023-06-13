@@ -4,6 +4,15 @@
 
 #include "arduino_secrets.h"
 
+#if defined(ESP8266)
+#define CACHED_FUNCTION_ATTR ICACHE_RAM_ATTR
+#elif defined(ESP32)
+#define CACHED_FUNCTION_ATTR IRAM_ATTR
+#else
+#define CACHED_FUNCTION_ATTR
+#endif
+
+
 #define MQTT_CLIENTID "weatherArduino2"
 //#define MQTT_SERVER "192.168.5.148"
 #define MQTT_WILLTOPIC  "clients/weatherArduino2/"
@@ -16,12 +25,33 @@
 //byte server[] = { 192, 168, 5, 148 };
 IPAddress server(192,168,5,148);
 
+#if defined(ARDUINO_ARCH_ESP8266)
+#include <SoftwareSerial.h>
 //info config
 const String software_version = "\"ESP8266_Wind_Vane_v1\"";
 //weather sensors
 const byte windSpeedPin = D4;
 const byte windDirPin = A0;
 const byte rainPin = D3;
+const byte rxPin = D6;
+const byte txPin = D5;
+const byte ledPin = LED_BUILTIN;
+SoftwareSerial RainSerial(rxPin, txPin); // RX | TX
+#elif defined(ARDUINO_ARCH_RP2040)
+//info config
+const String software_version = "\"RP2040_Wind_Vane_v1\"";
+//weather sensors
+const byte windSpeedPin = 27;
+const byte windDirPin = 26;
+const byte rainPin = 20;
+const byte rxPin = 16;
+const byte txPin = 17;
+const byte ledPin = 2;
+#define RainSerial Serial1
+#else
+  #error "Unsupported Hardware"
+#endif  // target detection
+
 /////////////////////////////////////////////////////////////////////
 WiFiClient wifiClient;
 PubSubClient client(wifiClient);
@@ -30,18 +60,32 @@ unsigned int windcnt = 0;
 unsigned int raincnt = 0;
 unsigned long lastSend;
 
-void ICACHE_RAM_ATTR cntWindSpeed();
-void ICACHE_RAM_ATTR cntRain();
+float rainAcc = 0.0F;
+float rainEventAcc = 0.0F;
+float rainTotalAcc = 0.0F;
+float rainIPH = 0.0F;
+String rainUnits;
+
+void CACHED_FUNCTION_ATTR cntWindSpeed();
+void CACHED_FUNCTION_ATTR cntRain();
 
 //////////////// SETUP //////////////////////////////////////////////
 void setup() {
   Serial.begin(115200);
+#if defined(ARDUINO_ARCH_RP2040)
+  RainSerial.setRX(rxPin);
+  RainSerial.setTX(txPin);
+#endif
+  RainSerial.begin(9600);
+  RainSerial.write('c');
+  RainSerial.write('\n');
   // pin for Wind speed
   pinMode(windSpeedPin, INPUT_PULLUP);
   //attachInterrupt(digitalPinToInterrupt(windSpeedPin), cntWindSpeed, RISING);
   pinMode(rainPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(rainPin), cntRain, RISING);
   pinMode(windDirPin, INPUT);
+  pinMode(ledPin, OUTPUT);
   
   delay(10);
   InitWiFi();
@@ -95,7 +139,10 @@ void loop() {
   }
 
   if ( millis() - lastSend > INTERVAL*1000 ) { // Update and send only after delay
+    digitalWrite(ledPin, HIGH); 
+    readRainSensor();
     getAndSendTemperatureAndHumidityData();    
+    digitalWrite(ledPin, LOW); 
   }
 
   client.loop();        //keep connected, look for messages from server
@@ -103,7 +150,35 @@ void loop() {
 }
 
 //////////////// Functions //////////////////////////////////////////
+void readRainSensor()
+{
+  String response = RainSerial.readStringUntil('\n');
+  if (response.startsWith("Acc")) {
+    char acc[7], eventAcc[7], totalAcc[7], rInt[7], unit[4];
+    sscanf (response.c_str(), "%*s %s %[^,] , %*s %s %*s %*s %s %*s %*s %s", &acc, &unit, &eventAcc, &totalAcc, &rInt);
 
+    /*
+    Serial.print("Accumulation: ");
+    Serial.print(atof (acc),3);  
+    Serial.println(unit);
+    Serial.print("Event Accumulation: ");
+    Serial.print(atof (eventAcc),3);  
+    Serial.println(unit);
+    Serial.print("Total Accumulation: ");
+    Serial.print(atof (totalAcc),3);  
+    Serial.println(unit);
+    Serial.print("IPH: ");
+    Serial.print(atof (rInt), 3);
+    Serial.println(" IPH\n");
+*/
+    rainAcc = atof (acc);
+    rainEventAcc = atof (eventAcc);
+    rainTotalAcc = atof (totalAcc);
+    rainIPH = atof (rInt);
+    rainUnits = unit;
+  }
+
+}
 void getAndSendTemperatureAndHumidityData()
 {
   Serial.println("Collecting Weather data.");
@@ -152,31 +227,49 @@ void getAndSendTemperatureAndHumidityData()
   Serial.print("Rain: ");
   Serial.print(r);
   Serial.print(" mm ");
-  
+
+  Serial.print(" Accumulation: ");
+  Serial.print(rainAcc,3);  
+  Serial.print(rainUnits);
+  Serial.print(" Event Accumulation: ");
+  Serial.print(rainEventAcc,3);  
+  Serial.print(rainUnits);
+  Serial.print(" Total Accumulation: ");
+  Serial.print(rainTotalAcc,3);  
+  Serial.print(rainUnits);
+  Serial.print(" IPH: ");
+  Serial.print(rainIPH, 3);
+  Serial.print(" IPH\n");
 
   String windspeed = String(ws);
   String winddir = String(wd);
   String winddirADC = String(dirpin);
   String rain = String(r);
 
+  String rain_Acc = String(rainAcc);
+  String rain_Event_Acc = String(rainEventAcc);
+  String rain_Total_Acc = String(rainTotalAcc);
+  String rain_IPH = String(rainIPH);
+
   // Just debug messages
-  Serial.print( "Sending Data : [" );
-  Serial.print( windspeed ); Serial.print( "," );
-  Serial.print( winddir ); Serial.print( "," );
-  Serial.print( rain );
-  Serial.print( "]   -> " );
+  Serial.print( "Sending Data -> " );
 
   // Prepare a JSON payload string
   String payload = "{";
   payload += "\"windspeed\":"; payload += windspeed; payload += ",";
   payload += "\"winddirection\":"; payload += winddir; payload += ",";
   payload += "\"winddirectionadc\":"; payload += winddirADC; payload += ",";
-  payload += "\"rain\":"; payload += rain;
+  payload += "\"rain\":"; payload += rain; payload += ",";
+  payload += "\"rainAcc\":"; payload += rain_Acc; payload += ",";
+  payload += "\"rainEventAcc\":"; payload += rain_Event_Acc; payload += ",";
+  payload += "\"rainTotalAcc\":"; payload += rain_Total_Acc; payload += ",";
+  payload += "\"rainIPH\":"; payload += rain_IPH; payload += ",";
+  payload += "\"rainUnits\":"; payload += rainUnits; 
   payload += "}";
 
   // Send payload
-  char attributes[100];
-  payload.toCharArray( attributes, 100 );
+  char attributes[1024];
+  payload.toCharArray( attributes, 1024 );
   client.publish( "arduino/weather2/status", attributes );
   Serial.println( attributes );
 
@@ -225,10 +318,10 @@ void reconnect() {
 }
 
 // Interupts
-void ICACHE_RAM_ATTR cntWindSpeed() {
+void CACHED_FUNCTION_ATTR cntWindSpeed() {
   windcnt++;
 }
 
-void ICACHE_RAM_ATTR cntRain() {
+void CACHED_FUNCTION_ATTR cntRain() {
   raincnt++;
 }
