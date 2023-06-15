@@ -1,5 +1,4 @@
 #include <PubSubClient.h>
-#include <ESP8266WiFi.h>
 #include <ArduinoOTA.h>
 
 #include "arduino_secrets.h"
@@ -12,6 +11,60 @@
 #define CACHED_FUNCTION_ATTR
 #endif
 
+#if ARDUINO_ARCH_ESP8266
+#define WIFI
+#include <SoftwareSerial.h>
+//info config
+const String software_version = "\"ESP8266_Wind_Vane_v1\"";
+//Weather Sensor Pins ESP8266 V3 PCB 
+const byte windSpeedPin = D4;
+const byte windDirPin = A0;
+const byte rainPin = D3;
+const byte rxPin = D6;
+const byte txPin = D5;
+const byte ledPin = LED_BUILTIN;
+SoftwareSerial RainSerial(rxPin, txPin); // RX | TX
+#elif ARDUINO_ARCH_RP2040 
+//info config
+const String software_version = "\"RP2040_Wind_Vane_v1\"";
+#define RainSerial Serial1
+#if ARDUINO_WIZNET_5500_EVB_PICO
+#define ETHERNET
+//#define BME280
+//#define DALLASTEMP
+//Weather Sensor Pins RP PICO V2 PCB 
+const byte windSpeedPin = 1;
+const byte windDirPin = 26;
+const byte rainPin = 13;
+const byte rxPin = 11;
+const byte txPin = 12;
+const byte ledPin = 22;
+#elif ARDUINO_RASPBERRY_PI_PICO_W 
+#define WIFI
+//Weather Sensor Pins RP PICO V1 PCB 
+const byte windSpeedPin = 27;
+const byte windDirPin = 26;
+const byte rainPin = 20;
+const byte rxPin = 16;
+const byte txPin = 17;
+const byte ledPin = 2;
+#endif
+#else
+  #error "Unsupported Hardware"
+#endif  // target detection
+
+#if defined(WIFI)
+#include <ESP8266WiFi.h>
+int status = WL_IDLE_STATUS;
+WiFiClient netClient;
+#elif defined(ETHERNET)
+#include <SPI.h>
+#include <Ethernet.h>
+byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
+EthernetClient netClient;
+#else
+  #error "Need WIFI or Ethernet"
+#endif
 
 #define MQTT_CLIENTID "weatherArduino2"
 //#define MQTT_SERVER "192.168.5.148"
@@ -25,37 +78,8 @@
 //byte server[] = { 192, 168, 5, 148 };
 IPAddress server(192,168,5,148);
 
-#if defined(ARDUINO_ARCH_ESP8266)
-#include <SoftwareSerial.h>
-//info config
-const String software_version = "\"ESP8266_Wind_Vane_v1\"";
-//weather sensors
-const byte windSpeedPin = D4;
-const byte windDirPin = A0;
-const byte rainPin = D3;
-const byte rxPin = D6;
-const byte txPin = D5;
-const byte ledPin = LED_BUILTIN;
-SoftwareSerial RainSerial(rxPin, txPin); // RX | TX
-#elif defined(ARDUINO_ARCH_RP2040)
-//info config
-const String software_version = "\"RP2040_Wind_Vane_v1\"";
-//weather sensors
-const byte windSpeedPin = 27;
-const byte windDirPin = 26;
-const byte rainPin = 20;
-const byte rxPin = 16;
-const byte txPin = 17;
-const byte ledPin = 2;
-#define RainSerial Serial1
-#else
-  #error "Unsupported Hardware"
-#endif  // target detection
-
 /////////////////////////////////////////////////////////////////////
-WiFiClient wifiClient;
-PubSubClient client(wifiClient);
-int status = WL_IDLE_STATUS;
+PubSubClient client(netClient);
 unsigned int windcnt = 0;
 unsigned int raincnt = 0;
 unsigned long lastSend;
@@ -71,6 +95,9 @@ void CACHED_FUNCTION_ATTR cntRain();
 
 //////////////// SETUP //////////////////////////////////////////////
 void setup() {
+#if defined(ETHERNET)
+  Ethernet.init(17);  // W5500-EVB-Pico
+#endif
   Serial.begin(115200);
 #if defined(ARDUINO_ARCH_RP2040)
   RainSerial.setRX(rxPin);
@@ -88,7 +115,7 @@ void setup() {
   pinMode(ledPin, OUTPUT);
   
   delay(10);
-  InitWiFi();
+  InitNetwork();
   client.setServer( server, 1883 );
 
   // send device attributes
@@ -157,20 +184,6 @@ void readRainSensor()
     char acc[7], eventAcc[7], totalAcc[7], rInt[7], unit[4];
     sscanf (response.c_str(), "%*s %s %[^,] , %*s %s %*s %*s %s %*s %*s %s", &acc, &unit, &eventAcc, &totalAcc, &rInt);
 
-    /*
-    Serial.print("Accumulation: ");
-    Serial.print(atof (acc),3);  
-    Serial.println(unit);
-    Serial.print("Event Accumulation: ");
-    Serial.print(atof (eventAcc),3);  
-    Serial.println(unit);
-    Serial.print("Total Accumulation: ");
-    Serial.print(atof (totalAcc),3);  
-    Serial.println(unit);
-    Serial.print("IPH: ");
-    Serial.print(atof (rInt), 3);
-    Serial.println(" IPH\n");
-*/
     rainAcc = atof (acc);
     rainEventAcc = atof (eventAcc);
     rainTotalAcc = atof (totalAcc);
@@ -276,7 +289,8 @@ void getAndSendTemperatureAndHumidityData()
   lastSend = millis();
 }
 
-void InitWiFi()
+#if defined(WIFI)
+void InitNetwork()
 {
   Serial.println("Connecting to AP ...");
   // attempt to connect to WiFi network
@@ -289,11 +303,33 @@ void InitWiFi()
   }
   Serial.println("Connected to AP");
 }
-
+#elif defined(ETHERNET)
+void InitNetwork()
+{
+  Serial.println("Initialize Ethernet with DHCP:");
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    // Check for Ethernet hardware present
+    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
+      Serial.println("Ethernet shield was not found.  Sorry, can't run without hardware. :(");
+      while (true) {
+        delay(1); // do nothing, no point running without Ethernet hardware
+      }
+    }
+    if (Ethernet.linkStatus() == LinkOFF) {
+      Serial.println("Ethernet cable is not connected.");
+    }
+  } else {
+    Serial.print("  DHCP assigned IP ");
+    Serial.println(Ethernet.localIP());
+  }
+}
+#endif
 
 void reconnect() {
   // Loop until we're reconnected
   while (!client.connected()) {
+#if defined(WIFI)
     status = WiFi.status();
     if ( status != WL_CONNECTED) {
       WiFi.begin(SECRET_SSID, SECRET_PASS);
@@ -303,6 +339,9 @@ void reconnect() {
       }
       Serial.println("Connected to AP");
     }
+#elif defined(ETHERNET)
+
+#endif
     Serial.print("Connecting to MQTT Server ...");
     // Attempt to connect (clientId, username, password)
     if ( client.connect(MQTT_CLIENTID, NULL, NULL) ) {
