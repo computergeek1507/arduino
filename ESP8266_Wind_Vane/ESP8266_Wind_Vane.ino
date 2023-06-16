@@ -39,6 +39,7 @@ const byte rainPin = 13;
 const byte rxPin = 11;
 const byte txPin = 12;
 const byte ledPin = 22;
+#define ONE_WIRE_BUS 0
 #elif ARDUINO_RASPBERRY_PI_PICO_W 
 #define WIFI
 //Weather Sensor Pins RP PICO V1 PCB 
@@ -64,6 +65,24 @@ byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 EthernetClient netClient;
 #else
   #error "Need WIFI or Ethernet"
+#endif
+
+#if defined(DALLASTEMP)
+//https://github.com/pstolarz/Arduino-Temperature-Control-Library
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+DeviceAddress outsideThermometer;
+#endif
+
+#if defined(BME280)
+//https://github.com/adafruit/Adafruit_BME280_Library
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+Adafruit_BME280 bme;
 #endif
 
 #define MQTT_CLIENTID "weatherArduino2"
@@ -113,7 +132,21 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(rainPin), cntRain, RISING);
   pinMode(windDirPin, INPUT);
   pinMode(ledPin, OUTPUT);
-  
+
+#if defined(DALLASTEMP)
+  sensors.begin();
+  if (!sensors.getAddress(insideThermometer, 0))
+  {
+    Serial.println("Unable to find address for Dallas Temperature  Device 0");
+  }
+  sensors.setResolution(insideThermometer, 9);
+#endif
+#if defined(BME280)
+  if (!bme.begin(0x76)) 
+  {
+    Serial.println("Could not find a valid BME280 sensor");
+  }
+#endif 
   delay(10);
   InitNetwork();
   client.setServer( server, 1883 );
@@ -168,7 +201,10 @@ void loop() {
   if ( millis() - lastSend > INTERVAL*1000 ) { // Update and send only after delay
     digitalWrite(ledPin, HIGH); 
     readRainSensor();
-    getAndSendTemperatureAndHumidityData();    
+    getAndSendTemperatureAndHumidityData();
+#if defined(DALLASTEMP)
+    sensors.requestTemperatures();
+#endif
     digitalWrite(ledPin, LOW); 
   }
 
@@ -229,7 +265,24 @@ void getAndSendTemperatureAndHumidityData()
   }
   if(dirpin > 2.95 &&  dirpin < 3.05 ){
     wd = "NW";
-  }    
+  }  
+#if defined(DALLASTEMP)
+  float tempC = sensors.getTempC(deviceAddress);
+  Serial.print("Outside Temp: ");
+  Serial.print(tempC);
+  Serial.print(" *C ");
+#endif
+
+#if defined(BME280)
+  float tempCBME = bme.readTemperature();
+  Serial.print("Temp: ");
+  Serial.print(tempC);
+  Serial.print(" *C ");
+  float humBME = bme.readHumidity();
+  Serial.print("Humidity: ");
+  Serial.print(humBME);
+  Serial.print(" % ");
+#endif
 
   Serial.print("Windspeed: ");
   Serial.print(ws);
@@ -240,7 +293,6 @@ void getAndSendTemperatureAndHumidityData()
   Serial.print("Rain: ");
   Serial.print(r);
   Serial.print(" mm ");
-
   Serial.print(" Accumulation: ");
   Serial.print(rainAcc,3);  
   Serial.print(rainUnits);
@@ -264,11 +316,27 @@ void getAndSendTemperatureAndHumidityData()
   String rain_Total_Acc = String(rainTotalAcc);
   String rain_IPH = String(rainIPH);
 
+#if defined(DALLASTEMP)
+  String temp_c = String(tempC);
+#endif
+
+#if defined(BME280)
+  String temp_c_bme = = String(tempCBME);
+  String hum_bme = String(humBME);
+#endif
+
   // Just debug messages
   Serial.print( "Sending Data -> " );
 
   // Prepare a JSON payload string
   String payload = "{";
+#if defined(DALLASTEMP)
+  payload += "\"outsidetemperature\":"; payload += temp_c; payload += ",";
+#endif
+#if defined(BME280)
+  payload += "\"temperature\":"; payload += temp_c_bme; payload += ",";
+    payload += "\"humidity\":"; payload += hum_bme; payload += ",";
+#endif
   payload += "\"windspeed\":"; payload += windspeed; payload += ",";
   payload += "\"winddirection\":"; payload += winddir; payload += ",";
   payload += "\"winddirectionadc\":"; payload += winddirADC; payload += ",";
