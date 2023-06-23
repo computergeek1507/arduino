@@ -19,7 +19,7 @@ const String software_version = "\"ESP8266_Wind_Vane_v1\"";
 //Weather Sensor Pins ESP8266 V3 PCB 
 const byte windSpeedPin = D4;
 const byte windDirPin = A0;
-const byte rainPin = D3;
+//const byte rainPin = D3;
 const byte rxPin = D6;
 const byte txPin = D5;
 const byte ledPin = LED_BUILTIN;
@@ -27,7 +27,6 @@ SoftwareSerial RainSerial(rxPin, txPin); // RX | TX
 #elif ARDUINO_ARCH_RP2040 
 //info config
 const String software_version = "\"RP2040_Wind_Vane_v1\"";
-#define RainSerial Serial1
 #if ARDUINO_WIZNET_5500_EVB_PICO
 #define ETHERNET
 //#define BME280
@@ -35,7 +34,7 @@ const String software_version = "\"RP2040_Wind_Vane_v1\"";
 //Weather Sensor Pins RP PICO V2 PCB 
 const byte windSpeedPin = 1;
 const byte windDirPin = 26;
-const byte rainPin = 13;
+//const byte rainPin = 13;
 const byte rxPin = 11;
 const byte txPin = 12;
 const byte ledPin = 22;
@@ -45,11 +44,12 @@ const byte ledPin = 22;
 //Weather Sensor Pins RP PICO V1 PCB 
 const byte windSpeedPin = 27;
 const byte windDirPin = 26;
-const byte rainPin = 20;
+//const byte rainPin = 20;
 const byte rxPin = 16;
 const byte txPin = 17;
 const byte ledPin = 2;
 #endif
+SerialPIO RainSerial(rxPin, txPin); // RX | TX
 #else
   #error "Unsupported Hardware"
 #endif  // target detection
@@ -100,7 +100,7 @@ IPAddress server(192,168,5,148);
 /////////////////////////////////////////////////////////////////////
 PubSubClient client(netClient);
 unsigned int windcnt = 0;
-unsigned int raincnt = 0;
+//unsigned int raincnt = 0;
 unsigned long lastSend;
 
 float rainAcc = 0.0F;
@@ -118,18 +118,14 @@ void setup() {
   Ethernet.init(17);  // W5500-EVB-Pico
 #endif
   Serial.begin(115200);
-#if defined(ARDUINO_ARCH_RP2040)
-  RainSerial.setRX(rxPin);
-  RainSerial.setTX(txPin);
-#endif
   RainSerial.begin(9600);
   RainSerial.write('c');
   RainSerial.write('\n');
   // pin for Wind speed
   pinMode(windSpeedPin, INPUT_PULLUP);
-  //attachInterrupt(digitalPinToInterrupt(windSpeedPin), cntWindSpeed, RISING);
-  pinMode(rainPin, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(rainPin), cntRain, RISING);
+  attachInterrupt(digitalPinToInterrupt(windSpeedPin), cntWindSpeed, RISING);
+  //pinMode(rainPin, INPUT_PULLUP);
+  //attachInterrupt(digitalPinToInterrupt(rainPin), cntRain, RISING);
   pinMode(windDirPin, INPUT);
   pinMode(ledPin, OUTPUT);
 
@@ -154,7 +150,7 @@ void setup() {
   // send device attributes
   if ( !client.connected() ) {
     reconnect();
-  }  
+  }
 
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
@@ -174,20 +170,20 @@ void setup() {
     else if (error == OTA_END_ERROR) Serial.println("End Failed");
   });
   ArduinoOTA.begin();
-  
+
   // Prepare a JSON payload string
   String payload = "{";
   payload += "\"Firmware\":"; payload += software_version; payload += ",";
   payload += "\"Sensors\":"; payload += "Wind Vane v2";
   payload += "}";
-  
+
   // Send the payload
   char attributes[100];
   payload.toCharArray( attributes, 100 );
   Serial.println(payload);
   client.publish( "arduino/weather2/info", attributes );
   Serial.println("Send device attributes.");
-  
+
   lastSend = millis() - INTERVAL*1000;
 }
 
@@ -226,7 +222,6 @@ void readRainSensor()
     rainIPH = atof (rInt);
     rainUnits = unit;
   }
-
 }
 void getAndSendTemperatureAndHumidityData()
 {
@@ -236,12 +231,12 @@ void getAndSendTemperatureAndHumidityData()
   float ws = (windcnt/INTERVAL) * 2.4;
   windcnt = 0;
   //Calculate Rain
-  float r = (raincnt/2)*0.2794;
-  raincnt = 0;
+  //float r = (raincnt/2)*0.2794;
+  //raincnt = 0;
   // get wind direction
   float dirpin = analogRead(windDirPin)*(3.3 / 1023.0);
   String wd = "other";
-  
+
   if(dirpin > 2.60 &&  dirpin < 2.70 ){
     wd = "N";
   }
@@ -276,7 +271,7 @@ void getAndSendTemperatureAndHumidityData()
 #if defined(BME280)
   float tempCBME = bme.readTemperature();
   Serial.print("Temp: ");
-  Serial.print(tempC);
+  Serial.print(tempCBME);
   Serial.print(" *C ");
   float humBME = bme.readHumidity();
   Serial.print("Humidity: ");
@@ -290,9 +285,9 @@ void getAndSendTemperatureAndHumidityData()
   Serial.print("Wind Direction: ");
   Serial.print(wd);
   Serial.print(" ");
-  Serial.print("Rain: ");
-  Serial.print(r);
-  Serial.print(" mm ");
+  //Serial.print("Rain: ");
+  //Serial.print(r);
+  //Serial.print(" mm ");
   Serial.print(" Accumulation: ");
   Serial.print(rainAcc,3);  
   Serial.print(rainUnits);
@@ -309,7 +304,7 @@ void getAndSendTemperatureAndHumidityData()
   String windspeed = String(ws);
   String winddir = String(wd);
   String winddirADC = String(dirpin);
-  String rain = String(r);
+  //String rain = String(r);
 
   String rain_Acc = String(rainAcc);
   String rain_Event_Acc = String(rainEventAcc);
@@ -335,12 +330,12 @@ void getAndSendTemperatureAndHumidityData()
 #endif
 #if defined(BME280)
   payload += "\"temperature\":"; payload += temp_c_bme; payload += ",";
-    payload += "\"humidity\":"; payload += hum_bme; payload += ",";
+  payload += "\"humidity\":"; payload += hum_bme; payload += ",";
 #endif
   payload += "\"windspeed\":"; payload += windspeed; payload += ",";
   payload += "\"winddirection\":"; payload += winddir; payload += ",";
   payload += "\"winddirectionadc\":"; payload += winddirADC; payload += ",";
-  payload += "\"rain\":"; payload += rain; payload += ",";
+  //payload += "\"rain\":"; payload += rain; payload += ",";
   payload += "\"rainAcc\":"; payload += rain_Acc; payload += ",";
   payload += "\"rainEventAcc\":"; payload += rain_Event_Acc; payload += ",";
   payload += "\"rainTotalAcc\":"; payload += rain_Total_Acc; payload += ",";
@@ -362,7 +357,7 @@ void InitNetwork()
 {
   Serial.println("Connecting to AP ...");
   // attempt to connect to WiFi network
-  
+
   WiFi.begin(SECRET_SSID, SECRET_PASS);
   WiFi.mode(WIFI_STA);
   while (WiFi.status() != WL_CONNECTED) {
@@ -430,5 +425,5 @@ void CACHED_FUNCTION_ATTR cntWindSpeed() {
 }
 
 void CACHED_FUNCTION_ATTR cntRain() {
-  raincnt++;
+  //raincnt++;
 }
