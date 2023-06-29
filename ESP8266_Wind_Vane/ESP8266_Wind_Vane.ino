@@ -1,5 +1,7 @@
 #include <PubSubClient.h>
 #include <ArduinoOTA.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
 
 #include "arduino_secrets.h"
 
@@ -85,9 +87,9 @@ DeviceAddress outsideThermometer;
 Adafruit_BME280 bme;
 #endif
 
-#define MQTT_CLIENTID "weatherArduino2"
+#define MQTT_CLIENTID "weatherArduino"
 //#define MQTT_SERVER "192.168.5.148"
-#define MQTT_WILLTOPIC  "clients/weatherArduino2/"
+#define MQTT_WILLTOPIC  "clients/weatherArduino3/"
 #define MQTT_WILLMESSAGE  "dead"
 #define TRUE    (1)
 
@@ -206,6 +208,7 @@ void loop() {
 
   client.loop();        //keep connected, look for messages from server
   ArduinoOTA.handle();
+  delay(10);
 }
 
 //////////////// Functions //////////////////////////////////////////
@@ -357,14 +360,17 @@ void InitNetwork()
 {
   Serial.println("Connecting to AP ...");
   // attempt to connect to WiFi network
-
-  WiFi.begin(SECRET_SSID, SECRET_PASS);
   WiFi.mode(WIFI_STA);
+  WiFi.begin(SECRET_SSID, SECRET_PASS);
+
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("Connected to AP");
+  Serial.print("Connected to ");
+  Serial.println(WiFi.SSID());
+  Serial.print("IP address: ");
+  Serial.println(WiFi.localIP());
 }
 #elif defined(ETHERNET)
 void InitNetwork()
@@ -405,9 +411,13 @@ void reconnect() {
 #elif defined(ETHERNET)
 
 #endif
-    Serial.print("Connecting to MQTT Server ...");
+    Serial.print("Connecting to MQTT Server as ");
+    auto clientid = String(MQTT_CLIENTID) + GetID();
+    Serial.print(clientid);
+    Serial.print("...");
     // Attempt to connect (clientId, username, password)
-    if ( client.connect(MQTT_CLIENTID, NULL, NULL) ) {
+
+    if ( client.connect(clientid.c_str(), NULL, NULL) ) {
       Serial.println( "[DONE]" );
     } else {
       Serial.print( "[FAILED] [ rc = " );
@@ -427,3 +437,28 @@ void CACHED_FUNCTION_ATTR cntWindSpeed() {
 void CACHED_FUNCTION_ATTR cntRain() {
   //raincnt++;
 }
+
+
+#if defined(ESP8266)
+String GetID()
+{
+  return String(ESP.getChipId());
+}
+#elif defined(ESP32)
+String GetID()
+{
+  char macValue[17]; // Don't forget one byte for the terminating NULL...
+  uint64_t mac = ESP.getEFuseMac();
+  uint32_t hi = mac >> 32;
+  uint32_t lo = mac;
+  sprintf(macValue, "%08x%08x", hi, lo);
+  return macValue;
+}
+#elif defined(ARDUINO_ARCH_RP2040)
+String GetID()
+{
+  return rp2040.getChipID();
+}
+#endif
+
+
