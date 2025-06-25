@@ -5,6 +5,11 @@
 
 #include "arduino_secrets.h"
 
+#define RG15_BAUDRATE      9650
+#define RG15_READ_TIMEOUT  500
+#define RG15_EVENT_TIMEOUT 60
+#define RG15_BUFFER_SIZE   150
+
 #if defined(ESP8266)
 #define CACHED_FUNCTION_ATTR ICACHE_RAM_ATTR
 #elif defined(ESP32)
@@ -51,7 +56,10 @@ const byte rxPin = 16;
 const byte txPin = 17;
 const byte ledPin = 2;
 #endif
-SerialPIO RainSerial(rxPin, txPin); // RX | TX
+#include <SoftwareSerial.h>
+SerialPIO RainSerial(rxPin, txPin,128); // RX | TX
+//SoftwareSerial RainSerial(txPin, rxPin); // RX | TX
+//#define RainSerial Serial1
 #else
   #error "Unsupported Hardware"
 #endif  // target detection
@@ -87,13 +95,22 @@ DeviceAddress outsideThermometer;
 Adafruit_BME280 bme;
 #endif
 
-#define MQTT_CLIENTID "weatherArduino"
+#define MQTT_CLIENTID "weather"
 //#define MQTT_SERVER "192.168.5.148"
-#define MQTT_WILLTOPIC  "clients/weatherArduino3/"
+//#define MQTT_WILLTOPIC  "clients/weatherArduino3/"
 #define MQTT_WILLMESSAGE  "dead"
 #define TRUE    (1)
 
 #define INTERVAL 30                                                 // Intervall of sending in seconds
+
+struct RG15 {
+  float acc;
+  float event;
+  float total;
+  float rate;
+  uint16_t time = RG15_EVENT_TIMEOUT;
+  uint8_t init_step;
+} Rg15;
 
 // Update these with values suitable for your network.
 //byte server[] = { 192, 168, 5, 148 };
@@ -105,12 +122,12 @@ unsigned int windcnt = 0;
 //unsigned int raincnt = 0;
 unsigned long lastSend;
 
-float rainAcc = 0.0F;
-float rainEventAcc = 0.0F;
-float rainTotalAcc = 0.0F;
-float rainIPH = 0.0F;
-String rainUnits;
-
+//float rainAcc = 0.0F;
+//float rainEventAcc = 0.0F;
+//float rainTotalAcc = 0.0F;
+//float rainIPH = 0.0F;
+//String rainUnits;
+String clientid;
 void CACHED_FUNCTION_ATTR cntWindSpeed();
 void CACHED_FUNCTION_ATTR cntRain();
 
@@ -120,9 +137,10 @@ void setup() {
   Ethernet.init(17);  // W5500-EVB-Pico
 #endif
   Serial.begin(115200);
-  RainSerial.begin(9600);
-  RainSerial.write('c');
-  RainSerial.write('\n');
+  RainSerial.begin(RG15_BAUDRATE);
+  Rg15.init_step = 5;
+  //RainSerial.write('c');
+  //RainSerial.write('\n');
   // pin for Wind speed
   pinMode(windSpeedPin, INPUT_PULLUP);
   attachInterrupt(digitalPinToInterrupt(windSpeedPin), cntWindSpeed, RISING);
@@ -130,6 +148,8 @@ void setup() {
   //attachInterrupt(digitalPinToInterrupt(rainPin), cntRain, RISING);
   pinMode(windDirPin, INPUT);
   pinMode(ledPin, OUTPUT);
+
+  clientid = String(MQTT_CLIENTID) + GetID();
 
 #if defined(DALLASTEMP)
   sensors.begin();
@@ -176,14 +196,14 @@ void setup() {
   // Prepare a JSON payload string
   String payload = "{";
   payload += "\"Firmware\":"; payload += software_version; payload += ",";
-  payload += "\"Sensors\":"; payload += "Wind Vane v2";
+  payload += "\"Sensors\":"; payload += "\"Wind Vane v2\"";
   payload += "}";
 
   // Send the payload
   char attributes[100];
   payload.toCharArray( attributes, 100 );
   Serial.println(payload);
-  client.publish( "arduino/weather2/info", attributes );
+  client.publish( ("arduino/" + clientid + "/info").c_str(), attributes );
   Serial.println("Send device attributes.");
 
   lastSend = millis() - INTERVAL*1000;
@@ -198,11 +218,18 @@ void loop() {
 
   if ( millis() - lastSend > INTERVAL*1000 ) { // Update and send only after delay
     digitalWrite(ledPin, HIGH); 
-    readRainSensor();
+    //readRainSensor();
     getAndSendTemperatureAndHumidityData();
 #if defined(DALLASTEMP)
     sensors.requestTemperatures();
 #endif
+    digitalWrite(ledPin, LOW); 
+  }
+
+  if ( millis() - lastSend > 1000 ) { // Update and send only after delay
+    digitalWrite(ledPin, HIGH); 
+    Rg15Poll();
+
     digitalWrite(ledPin, LOW); 
   }
 
@@ -212,7 +239,7 @@ void loop() {
 }
 
 //////////////// Functions //////////////////////////////////////////
-void readRainSensor()
+/*void readRainSensor()
 {
   String response = RainSerial.readStringUntil('\n');
   if (response.startsWith("Acc")) {
@@ -225,7 +252,7 @@ void readRainSensor()
     rainIPH = atof (rInt);
     rainUnits = unit;
   }
-}
+}*/
 void getAndSendTemperatureAndHumidityData()
 {
   Serial.println("Collecting Weather data.");
@@ -291,28 +318,28 @@ void getAndSendTemperatureAndHumidityData()
   //Serial.print("Rain: ");
   //Serial.print(r);
   //Serial.print(" mm ");
-  Serial.print(" Accumulation: ");
-  Serial.print(rainAcc,3);  
-  Serial.print(rainUnits);
-  Serial.print(" Event Accumulation: ");
-  Serial.print(rainEventAcc,3);  
-  Serial.print(rainUnits);
-  Serial.print(" Total Accumulation: ");
-  Serial.print(rainTotalAcc,3);  
-  Serial.print(rainUnits);
-  Serial.print(" IPH: ");
-  Serial.print(rainIPH, 3);
-  Serial.print(" IPH\n");
+  //Serial.print(" Accumulation: ");
+  //Serial.print(rainAcc,3);  
+  //Serial.print(rainUnits);
+  //Serial.print(" Event Accumulation: ");
+  //Serial.print(rainEventAcc,3);  
+  //Serial.print(rainUnits);
+  //Serial.print(" Total Accumulation: ");
+  //Serial.print(rainTotalAcc,3);  
+  //Serial.print(rainUnits);
+  //Serial.print(" IPH: ");
+  //Serial.print(rainIPH, 3);
+  //Serial.print(" IPH\n");
 
   String windspeed = String(ws);
   String winddir = String(wd);
   String winddirADC = String(dirpin);
   //String rain = String(r);
 
-  String rain_Acc = String(rainAcc);
-  String rain_Event_Acc = String(rainEventAcc);
-  String rain_Total_Acc = String(rainTotalAcc);
-  String rain_IPH = String(rainIPH);
+  //String rain_Acc = String(rainAcc);
+  //String rain_Event_Acc = String(rainEventAcc);
+  //String rain_Total_Acc = String(rainTotalAcc);
+  //String rain_IPH = String(rainIPH);
 
 #if defined(DALLASTEMP)
   String temp_c = String(tempC);
@@ -336,20 +363,20 @@ void getAndSendTemperatureAndHumidityData()
   payload += "\"humidity\":"; payload += hum_bme; payload += ",";
 #endif
   payload += "\"windspeed\":"; payload += windspeed; payload += ",";
-  payload += "\"winddirection\":"; payload += winddir; payload += ",";
-  payload += "\"winddirectionadc\":"; payload += winddirADC; payload += ",";
+  payload += "\"winddirection\":\""; payload += winddir; payload += "\",";
+  payload += "\"winddirectionadc\":"; payload += winddirADC; //payload += ",";
   //payload += "\"rain\":"; payload += rain; payload += ",";
-  payload += "\"rainAcc\":"; payload += rain_Acc; payload += ",";
-  payload += "\"rainEventAcc\":"; payload += rain_Event_Acc; payload += ",";
-  payload += "\"rainTotalAcc\":"; payload += rain_Total_Acc; payload += ",";
-  payload += "\"rainIPH\":"; payload += rain_IPH; payload += ",";
-  payload += "\"rainUnits\":"; payload += rainUnits; 
+  //payload += "\"rainAcc\":"; payload += rain_Acc; payload += ",";
+  //payload += "\"rainEventAcc\":"; payload += rain_Event_Acc; payload += ",";
+  //payload += "\"rainTotalAcc\":"; payload += rain_Total_Acc; payload += ",";
+  //payload += "\"rainIPH\":"; payload += rain_IPH; payload += ",";
+  //payload += "\"rainUnits\":\""; payload += rainUnits;  payload += "\"";
   payload += "}";
 
   // Send payload
   char attributes[1024];
   payload.toCharArray( attributes, 1024 );
-  client.publish( "arduino/weather2/status", attributes );
+  client.publish( ("arduino/" + clientid + "/wind").c_str(), attributes );
   Serial.println( attributes );
 
   lastSend = millis();
@@ -412,7 +439,6 @@ void reconnect() {
 
 #endif
     Serial.print("Connecting to MQTT Server as ");
-    auto clientid = String(MQTT_CLIENTID) + GetID();
     Serial.print(clientid);
     Serial.print("...");
     // Attempt to connect (clientId, username, password)
@@ -461,4 +487,197 @@ String GetID()
 }
 #endif
 
+float CharToFloat(const char *str)
+{
+  // simple ascii to double, because atof or strtod are too large
+  char strbuf[24];
+
+  strlcpy(strbuf, str, sizeof(strbuf));
+  char *pt = strbuf;
+  if (*pt == '\0') { return 0.0f; }
+
+  while ((*pt != '\0') && isspace(*pt)) { pt++; }  // Trim leading spaces
+
+  signed char sign = 1;
+  if (*pt == '-') { sign = -1; }
+  if (*pt == '-' || *pt == '+') { pt++; }          // Skip any sign
+
+  float left = 0;
+  if (*pt != '.') {
+    left = atoi(pt);                               // Get left part
+    while (isdigit(*pt)) { pt++; }                 // Skip number
+  }
+
+  float right = 0;
+  if (*pt == '.') {
+    pt++;
+    uint32_t max_decimals = 0;
+    while ((max_decimals < 8) && isdigit(pt[max_decimals])) { max_decimals++; }
+    pt[max_decimals] = '\0';                       // Limit decimals to float max of 8
+    right = atoi(pt);                              // Decimal part
+    while (isdigit(*pt)) {
+      pt++;
+      right /= 10.0f;
+    }
+  }
+
+  float result = left + right;
+  if (sign < 0) {
+    return -result;                                // Add negative sign
+  }
+  return result;
+}
+
+bool Rg15ReadLine(char* buffer) {
+  // All lines are terminated with a carriage return (\r or 13) followed by a new line (\n or 10)
+  uint32_t i = 0;
+  uint32_t cmillis = millis();
+  while (RainSerial.available() ) {
+    char c = RainSerial.read();
+    if (c == 10) { break; }                  // New line ends the message
+
+    if ((c >= 32) && (c < 127)) {            // Accept only valid characters
+      buffer[i++] = c;
+      if (i == RG15_BUFFER_SIZE -1) { break; }  // Overflow
+    }
+  delay(10);
+    //if ((millis() - cmillis) > RG15_READ_TIMEOUT) {
+      //AddLog(LOG_LEVEL_DEBUG, PSTR("HRG: Timeout"));
+      //Serial.println( "HRG: Timeout" );
+      //return false;
+    //}
+  }
+  buffer[i] = '\0';
+      Serial.print( "HRG: Read '" );
+      Serial.print( buffer );
+      Serial.println( "'" );
+
+
+  return true;
+}
+
+bool Rg15Parse(char* buffer, const char* item, float* result) {
+  char* start = strstr(buffer, item);
+  if (start != nullptr) {
+    char* end = strstr(start, " mm");        // Metric (mm or mmph)
+    if (end == nullptr) {
+      end = strstr(start, " i");             // Imperial (in or iph)
+    }
+    if (end != nullptr) {
+      char tmp = end[0];
+      end[0] = '\0';
+      *result = CharToFloat(start + strlen(item));
+      end[0] = tmp;
+      return true;
+    }
+  }
+  return false;
+}
+
+bool Rg15Process(char* buffer) {
+  // Process payloads like:
+  // Acc  0.01 mm, EventAcc  2.07 mm, TotalAcc 54.85 mm, RInt  2.89 mmph
+  // Acc 0.001 in, EventAcc 0.002 in, TotalAcc 0.003 in, RInt 0.004 iph
+  // Acc 0.001 mm, EventAcc 0.002 mm, TotalAcc 0.003 mm, RInt 0.004 mmph, XTBTips 0, XTBAcc 0.01 mm, XTBEventAcc 0.02 mm, XTBTotalAcc 0.03 mm
+  if (buffer[0] == 'A' && buffer[1] == 'c' && buffer[2] == 'c') {
+    Rg15Parse(buffer, "Acc", &Rg15.acc);
+    Rg15Parse(buffer, "EventAcc", &Rg15.event);
+    Rg15Parse(buffer, "TotalAcc", &Rg15.total);
+    Rg15Parse(buffer, "RInt", &Rg15.rate);
+
+    if (Rg15.acc > 0.0f) {
+      Rg15.time = RG15_EVENT_TIMEOUT;        // We have some data, so the rain event is on-going
+    }
+    return true;
+  }
+  return false;
+}
+
+/*********************************************************************************************/
+
+void Rg15Poll(void) {
+  bool publish = false;
+
+  if (!RainSerial.available()) {
+    if (Rg15.time) {                         // Check if the rain event has timed out, reset rate to 0
+      Rg15.time--;
+      if (!Rg15.time) {
+        Rg15.acc = 0;
+        Rg15.rate = 0;
+        publish = true;
+      }
+    }
+  } else {
+    char rg15_buffer[RG15_BUFFER_SIZE];      // Read what's available
+    while (RainSerial.available()) {
+      Rg15ReadLine(rg15_buffer);
+      if (Rg15Process(rg15_buffer)) {        // Do NOT use "publish = Rg15Process(rg15_buffer)"
+        publish = true;
+      }
+    }
+  }
+
+  if (publish) {
+    MqttPublishRainSensor();
+  }
+
+//       Units: I = Imperial (in)          or M = Metric (mm)
+//  Resolution: H = High (0.001)           or L = Low (0.01)
+//        Mode: P = Request mode (Polling) or C = Continuous mode - report any change
+//     Request: R = Read available data once
+  char init_commands[] = "R CLI  ";          // Indexed by Rg15.init_step
+
+  if (Rg15.init_step) {
+    Rg15.init_step--;
+
+    char cmnd = init_commands[Rg15.init_step];
+    if (cmnd != ' ') {
+      RainSerial.println(cmnd);
+    }
+  }
+}
+
+void MqttPublishRainSensor()
+{
+  /*
+    float acc;
+  float event;
+  float total;
+  float rate;
+  */
+  Serial.println("Sendind Rain data.");
+
+  Serial.print(" Accumulation: ");
+  Serial.print(Rg15.acc,4);  
+  Serial.print("in Event Accumulation: ");
+  Serial.print(Rg15.event,4);  
+  Serial.print("in Total Accumulation: ");
+  Serial.print(Rg15.total,4);  
+  Serial.print("in Rate: ");
+  Serial.print(Rg15.rate, 4);
+  Serial.print(" IPH\n");
+
+  String rain_Acc = String(Rg15.acc,3);
+  String rain_Event_Acc = String(Rg15.event,3);
+  String rain_Total_Acc = String(Rg15.total,3);
+  String rain_IPH = String(Rg15.rate,3);
+
+  // Just debug messages
+  Serial.print( "Sending Data -> " );
+
+  // Prepare a JSON payload string
+  String payload = "{";
+  payload += "\"rainAcc\":"; payload += rain_Acc; payload += ",";
+  payload += "\"rainEventAcc\":"; payload += rain_Event_Acc; payload += ",";
+  payload += "\"rainTotalAcc\":"; payload += rain_Total_Acc; payload += ",";
+  payload += "\"rainIPH\":"; payload += rain_IPH; payload;
+  payload += "}";
+
+  // Send payload
+  char attributes[1024];
+  payload.toCharArray( attributes, 1024 );
+  client.publish( ("arduino/" + clientid + "/rain").c_str(), attributes );
+  Serial.println( attributes );
+
+}
 

@@ -156,6 +156,8 @@ void loop()
     //SendStandardDoorReading();
     //totalCount++;
     //Serial.println(totalCount,DEC);
+    SendCar1Reading();
+    SendCar2Reading();
   }
 
   int newDoorValue = digitalRead(stdDoorPin);
